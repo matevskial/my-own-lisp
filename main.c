@@ -9,7 +9,6 @@ static char input_buff[input_buff_size];
 static char *prompt = "my-own-lisp> ";
 
 int main(int argc, char** argv) {
-
     puts("my-own-lisp version 0.0.1");
     puts("Press Ctrl-C to exit\n");
 
