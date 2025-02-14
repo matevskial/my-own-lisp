@@ -27,6 +27,39 @@ size_t read_line_stdin_scanf(char *buff, size_t size) {
     return size_to_copy;
 }
 
+size_t read_line_stdin_fgets(char *buff, size_t size) {
+    char* result = fgets(buff, size, stdin);
+    if (result == NULL) {
+        return 0;
+    }
+    if (feof(stdin) || ferror(stdin)) {
+        if (ferror(stdin)) {
+            fflush(stdin);
+        }
+        return 0;
+    }
+
+    // counting null-terminating character too
+    size_t input_final_size = strlen(buff) + 1;
+
+    // note: ignores additional input if stdin has more bytes of input than size, so reading is not continuing automatically for the remaining input
+    if (input_final_size > 1 && buff[input_final_size - 2] != '\n') {
+        int c;
+        while ((c = fgetc(stdin)) != EOF && c != '\n') {
+            if (ferror(stdin)) {
+                fflush(stdin);
+                break;
+            }
+        }
+    }
+
+    if (input_final_size > 1 && buff[input_final_size - 2] == '\n') {
+        buff[input_final_size - 2] = '\0';
+    }
+
+    return input_final_size;
+}
+
 size_t read_line_stdin(const char *prompt, char *buff, size_t size) {
     if (size < 2) {
         return 0;
@@ -36,7 +69,7 @@ size_t read_line_stdin(const char *prompt, char *buff, size_t size) {
     fputs(prompt, stdout);
     fflush(stdout);
 
-    return read_line_stdin_scanf(buff, size);
+    return read_line_stdin_fgets(buff, size);
 #elif defined(__unix__) || defined(__APPLE__) || defined(__MACH__)
     char *input = readline(prompt);
     if (input == NULL) {
