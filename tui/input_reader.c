@@ -9,36 +9,52 @@
 #include <stdlib.h>
 #endif
 
-char *read_line_stdin(const char *prompt, char *buff, size_t size) {
-#ifdef defined(_WIN32)
-    fputs(prompt, stdout);
+size_t read_line_stdin_scanf(char *buff, size_t size) {
     char *input = malloc(sizeof(char) * size);
-    scanf("%s", input);
-    size_t input_full_size = strlen(input) + 1;
-    size_t len_to_copy = input_full_size < size ? input_full_size : size;
-    if (len_to_copy > 0) {
-        len_to_copy--;
+    // scanf resizes buffer to arbitrary length - no protection from long lines
+    int result = scanf("%s", input);
+    if (result == 0 || result == EOF) {
+        return 0;
     }
-    strncpy(buff, input, len_to_copy);
-    buff[len_to_copy] = '\0';
+
+    // counting null-terminating character too
+    size_t input_final_size = strlen(input) + 1;
+    size_t size_to_copy = input_final_size < size ? input_final_size : size;
+    strncpy(buff, input, size_to_copy);
+    buff[size_to_copy - 1] = '\0';
+
     free(input);
-    return buff;
+    return size_to_copy;
+}
+
+size_t read_line_stdin(const char *prompt, char *buff, size_t size) {
+    if (size < 2) {
+        return 0;
+    }
+
+#if defined(_WIN32)
+    fputs(prompt, stdout);
+    fflush(stdout);
+
+    return read_line_stdin_scanf(buff, size);
 #elif defined(__unix__) || defined(__APPLE__) || defined(__MACH__)
     char *input = readline(prompt);
+    if (input == NULL) {
+        return 0;
+    }
+
+    // counting null-terminating character too
     size_t input_full_size = strlen(input) + 1;
 
     add_history(input);
 
-    size_t len_to_copy = input_full_size < size ? input_full_size : size;
-    if (len_to_copy > 0) {
-        len_to_copy--;
-    }
-    strncpy(buff, input, len_to_copy);
-    buff[len_to_copy] = '\0';
+    size_t size_to_copy = input_full_size < size ? input_full_size : size;
+    strncpy(buff, input, size_to_copy);
+    buff[size_to_copy - 1] = '\0';
 
     free(input);
-    return buff;
+    return size_to_copy;
 #else
-    return buff;
+    return 0
 #endif
 }

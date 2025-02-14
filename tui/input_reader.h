@@ -7,6 +7,6 @@
  * @param prompt
  * @param buff
  * @param size
- * @return
+ * @return number of bytes read in the buffer, -1 if failure reading input
  */
-char *read_line_stdin(const char *prompt, char *buff, size_t size);
+size_t read_line_stdin(const char *prompt, char *buff, size_t size);

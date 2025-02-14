@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <stdlib.h>
+
 #include "tui/input_reader.h"
 
 /* constexpr(keyword since C23) used so that we don't get variably modified at scope compiler error
@@ -13,7 +15,12 @@ int main(int argc, char** argv) {
     puts("Press Ctrl-C to exit\n");
 
     while (1) {
-        read_line_stdin(prompt, input_buff, input_buff_size);
+        size_t size_read = read_line_stdin(prompt, input_buff, input_buff_size);
+
+        if (size_read < 2) {
+            puts("input error");
+            exit(1);
+        }
 
         printf("%s\n", input_buff);
     }
