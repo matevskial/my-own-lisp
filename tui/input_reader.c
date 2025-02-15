@@ -1,9 +1,11 @@
-#if defined(_WIN32)
+#include "config.h"
+
+#if defined(_WINDOWS) || defined(READ_LINE_STDIN_WITH_STDIO)
 #include <stdio.h>
 #include <unistd.h>
 #endif
 
-#if defined(__unix__) || defined(__APPLE__) || defined(__MACH__)
+#if defined(_UNIX_STYLE_OS)
 #include <editline/readline.h>
 #include <string.h>
 #include <stdlib.h>
@@ -66,12 +68,12 @@ size_t read_line_stdin(const char *prompt, char *buff, size_t size) {
         return 0;
     }
 
-#if defined(_WIN32)
+#if defined(_WINDOWS) || defined(READ_LINE_STDIN_WITH_STDIO)
     fputs(prompt, stdout);
     fflush(stdout);
 
     return read_line_stdin_fgets(buff, size);
-#elif defined(__unix__) || defined(__APPLE__) || defined(__MACH__)
+#elif defined(_UNIX_STYLE_OS)
     char *input = readline(prompt);
     if (input == NULL) {
         return 0;
@@ -91,6 +93,6 @@ size_t read_line_stdin(const char *prompt, char *buff, size_t size) {
     free(input);
     return size_to_copy;
 #else
-    return 0
+    return 0;
 #endif
 }
