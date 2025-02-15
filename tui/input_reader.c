@@ -55,6 +55,7 @@ size_t read_line_stdin_fgets(char *buff, size_t size) {
 
     if (input_final_size > 1 && buff[input_final_size - 2] == '\n') {
         buff[input_final_size - 2] = '\0';
+        input_final_size--;
     }
 
     return input_final_size;
