@@ -11,6 +11,16 @@ static constexpr size_t input_buff_size = 2048;
 static char input_buff[input_buff_size];
 static char *prompt = "my-own-lisp> ";
 
+// this is a language with bonus marks additions
+// it is in a separate variable because some of the bonus mark probably won't be used in the language my-own-lisp
+static char *chapter_6_bonus_mark_language =
+    "                                                                         \
+        number          : /-?[0-9]+/ ;                                        \
+        operator        : '+' | '-' | '*' | '/' | '%' | ;                     \
+        expr            : <number> | /-?//[0-9]/'.'/[0-9]/ | /-?/'.'/[0-9]/ | '(' <operator> <expr>+ ')' ;             \
+        my_own_lisp     : /^/ <operator> <expr>+ /$/ | /^[ab]+$/ ;    \
+    ";
+
 static char *my_own_lisp_language =
     "                                                                         \
         number          : /-?[0-9]+/ ;                                        \
