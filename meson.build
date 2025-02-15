@@ -5,6 +5,7 @@ project('my-own-lisp', 'c',
 c = meson.get_compiler('c')
 
 subdir('tui')
+subdir('mpc')
 
 root_includes = include_directories('.')
 sources = [files('main.c')] + tui_sources
@@ -21,9 +22,15 @@ editlineDep = declare_dependency(link_args : ['-ledit'])
 # this does not work
 #editlineDep = dependency('edit', method : 'system')
 
-if editlineDep.found()
-        dependencies_for_target_unix_mac += [editlineDep]
-endif
+linuxMathDep = declare_dependency(link_args : ['-lm'])
+
+mpcDep = declare_dependency(
+        include_directories : mpc_inc,
+        sources : mpc_sources
+)
+
+dependencies_for_target_unix_mac += [editlineDep, linuxMathDep, mpcDep]
+dependencies_for_target_windows += [mpcDep]
 
 my_own_lisp_unix_mac = executable(
         'my_own_lisp_unix_mac',
