@@ -1,5 +1,7 @@
 #include "config.h"
 
+#include <stdlib.h>
+
 #if defined(_WINDOWS) || defined(READ_LINE_STDIN_WITH_STDIO)
 #include <stdio.h>
 #include <unistd.h>
@@ -8,7 +10,6 @@
 #if defined(_UNIX_STYLE_OS)
 #include <editline/readline.h>
 #include <string.h>
-#include <stdlib.h>
 #endif
 
 size_t read_line_stdin_scanf(char *buff, size_t size) {
