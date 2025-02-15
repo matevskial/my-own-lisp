@@ -79,7 +79,9 @@ size_t read_line_stdin(const char *prompt, char *buff, size_t size) {
     // counting null-terminating character too
     size_t input_full_size = strlen(input) + 1;
 
-    add_history(input);
+    if (input_full_size > 1 && input[0]) {
+        add_history(input);
+    }
 
     size_t size_to_copy = input_full_size < size ? input_full_size : size;
     strncpy(buff, input, size_to_copy);

@@ -17,12 +17,14 @@ int main(int argc, char** argv) {
     while (1) {
         size_t size_read = read_line_stdin(prompt, input_buff, input_buff_size);
 
-        if (size_read < 2) {
+        if (size_read < 1) {
             puts("input error");
             exit(1);
         }
 
-        printf("%s\n", input_buff);
+        if (size_read > 1) {
+            printf("%s\n", input_buff);
+        }
     }
 
     return 0;
