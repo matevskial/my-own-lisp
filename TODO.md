@@ -1,7 +1,9 @@
 # Task tracking
 
-* [] - Use #define to introduce custom definitions for win and unix,mac to not duplicate if in input_reader.c
+* [v] - Use #define to introduce custom definitions for win and unix,mac to not duplicate if in input_reader.c
   * use all macros for unix too https://stackoverflow.com/questions/142508/how-do-i-check-os-with-a-preprocessor-directive#8249232
+  * https://stackoverflow.com/questions/2989810/which-cross-platform-preprocessor-defines-win32-or-win32-or-win32
+  * https://mesonbuild.com/FAQ.html#how-to-add-preprocessor-defines-to-a-target
 * [v] - Experiment with different ways of declaring editline dependency in meson
   * using find_library 
     * https://groups.google.com/g/mesonbuild/c/FFOD92YNH2Q 
