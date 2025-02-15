@@ -11,9 +11,14 @@ includes = [tui_inc]
 
 dependencies_for_target_unix_mac = []
 
+# I am choosing this approach since its most explicit
 editlineDep = declare_dependency(link_args : ['-ledit'])
 
-#editlineDep = c.find_library(dirs : ['/usr/include/editline'])
+# this works
+#editlineDep = c.find_library('edit')
+
+# this does not work
+#editlineDep = dependency('edit', method : 'system')
 
 if editlineDep.found()
         dependencies_for_target_unix_mac += [editlineDep]
