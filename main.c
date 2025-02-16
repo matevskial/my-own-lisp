@@ -45,36 +45,30 @@ lisp_value_t execute_operation(mpc_ast_t* operation, lisp_value_t first_operand,
     }
 
     if (strcmp(operation->contents, "+") == 0) {
-        return lisp_value_new( first_operand.value + second_operand.value);
+        return add_lisp_values(first_operand, second_operand);
     }
     if (strcmp(operation->contents, "-") == 0) {
-        return lisp_value_new( first_operand.value - second_operand.value);
+        return subtract_lisp_values(first_operand, second_operand);
     }
     if (strcmp(operation->contents, "*") == 0) {
-        return lisp_value_new( first_operand.value * second_operand.value);
+        return multiply_lisp_values(first_operand, second_operand);
     }
     if (strcmp(operation->contents, "/") == 0) {
-        if (second_operand.value == 0) {
-            return lisp_value_error_new(ERR_DIV_ZERO);
-        }
-        return lisp_value_new( first_operand.value / second_operand.value);
+        return divide_lisp_values(first_operand, second_operand);
     }
     if (strcmp(operation->contents, "%") == 0) {
-        if (second_operand.value == 0) {
-            return lisp_value_error_new(ERR_DIV_ZERO);
-        }
-        return lisp_value_new( first_operand.value % second_operand.value);
+        return division_remainder_lisp_value(first_operand, second_operand);
     }
     if (strcmp(operation->contents, "^") == 0) {
-        return lisp_value_new((long) powl(first_operand.value, second_operand.value));
+        return pow_lisp_value(first_operand, second_operand);
     }
     if (strcmp(operation->contents, "min") == 0) {
-        long min = first_operand.value < second_operand.value ? first_operand.value : second_operand.value;
-        return lisp_value_new(min);
+        lisp_value_t min = min_lisp_value(first_operand, second_operand);
+        return min;
     }
     if (strcmp(operation->contents, "max") == 0) {
-        long max = first_operand.value > second_operand.value ? first_operand.value : second_operand.value;
-        return lisp_value_new(max);
+        lisp_value_t max = max_lisp_value(first_operand, second_operand);
+        return max;
     }
     return lisp_value_error_new(ERR_INVALID_OPERATOR);
 }
@@ -84,7 +78,7 @@ lisp_value_t execute_numeric_unary_operation(mpc_ast_t* operation, lisp_value_t 
         return operand;
     }
     if (strcmp(operation->contents, "-") == 0) {
-        return lisp_value_new(-operand.value);
+        return negate_lisp_value(operand);
     }
     return operand;
 }
@@ -97,15 +91,15 @@ lisp_value_t eval(mpc_ast_t *ast) {
         if (errno != 0) {
             return lisp_value_error_new(ERR_BAD_NUMERIC_VALUE);
         }
-        return lisp_value_new(number);
+        return lisp_value_number_new(number);
     }
     if (has_tag(ast, "decimal")) {
         errno = 0;
-        long number = (long )strtod(ast->contents, NULL);
+        double number_decimal = strtod(ast->contents, NULL);
         if (errno != 0) {
             return lisp_value_error_new(ERR_BAD_NUMERIC_VALUE);
         }
-        return lisp_value_new(number);
+        return lisp_value_decimal_new(number_decimal);
     }
 
     mpc_ast_t *operator = ast->children[1];
