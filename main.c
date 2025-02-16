@@ -22,32 +22,51 @@ static char *chapter_6_bonus_mark_language =
     ";
 
 static char *my_own_lisp_language =
-    "                                                                                            \
-        number          : /-?[0-9]+/ ;                                                           \
-        decimal_number  : /-?[0-9]*\\.[0-9]+/ ;                                                   \
-        operator        : '+' | '-' | '*' | '/' | '%' ;                                          \
-        expr            : <decimal_number> | <number> | '(' <operator> <expr>+ ')' ;             \
-        my_own_lisp     : /^/ <operator> <expr>+ /$/ ;                                           \
+    "                                                                                                \
+        number            : /-?[0-9]+/ ;                                                             \
+        decimal_number    : /-?[0-9]*\\.[0-9]+/ ;                                                    \
+        operator          : '+' | '-' | '*' | '/' | '%' | '^' | \"min\" | \"max\" ;                  \
+        expr              : <decimal_number> | <number> | '(' <operator> <expr>+ ')' ;               \
+        my_own_lisp       : /^/ <operator> <expr>+ /$/ ;                                             \
     ";
 
 bool has_tag(mpc_ast_t * ast, char * tag) {
     return strstr(ast->tag, tag) != NULL;
 }
 
-long execute_operation(mpc_ast_t * operator, long first_operand, long second_operand) {
-    if (strcmp(operator->contents, "+") == 0) {
+long execute_operation(mpc_ast_t* operation, long first_operand, long second_operand) {
+    if (strcmp(operation->contents, "+") == 0) {
         return first_operand + second_operand;
     }
-    if (strcmp(operator->contents, "-") == 0) {
+    if (strcmp(operation->contents, "-") == 0) {
         return first_operand - second_operand;
     }
-    if (strcmp(operator->contents, "*") == 0) {
+    if (strcmp(operation->contents, "*") == 0) {
         return first_operand * second_operand;
     }
-    if (strcmp(operator->contents, "/") == 0) {
+    if (strcmp(operation->contents, "/") == 0) {
         return first_operand / second_operand;
     }
+    if (strcmp(operation->contents, "%") == 0) {
+        return first_operand % second_operand;
+    }
+    if (strcmp(operation->contents, "^") == 0) {
+        return (long) powl(first_operand, second_operand);
+    }
+    if (strcmp(operation->contents, "min") == 0) {
+        return first_operand < second_operand ? first_operand : second_operand;
+    }
+    if (strcmp(operation->contents, "max") == 0) {
+        return first_operand > second_operand ? first_operand : second_operand;
+    }
     return 0;
+}
+
+long execute_numeric_unary_operation(mpc_ast_t* operation, long operand) {
+    if (strcmp(operation->contents, "-") == 0) {
+        return -operand;
+    }
+    return operand;
 }
 
 /* Assumes ast is not NULL */
@@ -61,7 +80,7 @@ long eval(mpc_ast_t *ast) {
 
     mpc_ast_t *operator = ast->children[1];
     long first_expr_value = eval(ast->children[2]);
-    long result = first_expr_value;
+    long result = execute_numeric_unary_operation(operator, first_expr_value);
 
     int i = 3;
     while (has_tag(ast->children[i], "expr")) {
