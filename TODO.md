@@ -15,7 +15,8 @@
     * readline(from editline) also does not impose limit of reading, so same issue as scanf
 * [v] - Add target for windows and build and run on windows
 * [v] - Consider refactoring read_line_stdin to not contain preprocessor directives
-* [] - Consider creating custom struct typedefs that represent the ast of `my-own-lisp` in order to 
+* [v] - Consider creating custom struct typedefs that represent the ast of `my-own-lisp` in order to 
   * not depend on mpc in interpreter.h and interpreter.c
   * move the function eval in interpreter.c
   * the main method would glue together mpc and eval by translating mpc ast to the ast represented by the custom structs
+  * note: this is kind-of done by introducing s-expressions and distinguishing between parsing lisp_value_t and evaluating lisp_value_t
