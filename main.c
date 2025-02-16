@@ -27,69 +27,22 @@ static char *my_own_lisp_language =
     "                                                                                                \
         number            : /-?[0-9]+/ ;                                                             \
         decimal           : /-?[0-9]*\\.[0-9]+/ ;                                                    \
-        operator          : '+' | '-' | '*' | '/' | '%' | '^' | \"min\" | \"max\" ;                  \
-        expr              : <decimal> | <number> | '(' <operator> <expr>+ ')' ;                      \
-        my_own_lisp       : /^/ <operator> <expr>+ /$/ ;                                             \
+        symbol            : '+' | '-' | '*' | '/' | '%' | '^' | \"min\" | \"max\" ;                  \
+        sexpr             : '(' <expr>* ')' ;                                                        \
+        expr              : <symbol> | <decimal> | <number> | <sexpr> ;                              \
+        my_own_lisp       : /^/ <expr>* /$/ ;                                                        \
     ";
 
 bool has_tag(mpc_ast_t * ast, char * tag) {
     return strstr(ast->tag, tag) != NULL;
 }
 
-lisp_value_t execute_operation(mpc_ast_t* operation, lisp_value_t first_operand, lisp_value_t second_operand) {
-    if (is_lisp_value_error(first_operand)) {
-        return first_operand;
-    }
-    if (is_lisp_value_error(second_operand)) {
-        return second_operand;
-    }
-
-    if (strcmp(operation->contents, "+") == 0) {
-        return add_lisp_values(first_operand, second_operand);
-    }
-    if (strcmp(operation->contents, "-") == 0) {
-        return subtract_lisp_values(first_operand, second_operand);
-    }
-    if (strcmp(operation->contents, "*") == 0) {
-        return multiply_lisp_values(first_operand, second_operand);
-    }
-    if (strcmp(operation->contents, "/") == 0) {
-        return divide_lisp_values(first_operand, second_operand);
-    }
-    if (strcmp(operation->contents, "%") == 0) {
-        return division_remainder_lisp_value(first_operand, second_operand);
-    }
-    if (strcmp(operation->contents, "^") == 0) {
-        return pow_lisp_value(first_operand, second_operand);
-    }
-    if (strcmp(operation->contents, "min") == 0) {
-        lisp_value_t min = min_lisp_value(first_operand, second_operand);
-        return min;
-    }
-    if (strcmp(operation->contents, "max") == 0) {
-        lisp_value_t max = max_lisp_value(first_operand, second_operand);
-        return max;
-    }
-    return lisp_value_error_new(ERR_INVALID_OPERATOR);
-}
-
-lisp_value_t execute_numeric_unary_operation(mpc_ast_t* operation, lisp_value_t operand) {
-    if (is_lisp_value_error(operand)) {
-        return operand;
-    }
-    if (strcmp(operation->contents, "-") == 0) {
-        return negate_lisp_value(operand);
-    }
-    return operand;
-}
-
-/* Assumes ast is not NULL */
-lisp_value_t eval(mpc_ast_t *ast) {
+lisp_value_t* parse_lisp_value(mpc_ast_t* ast) {
     if (has_tag(ast, "number")) {
         errno = 0;
         long number = strtol(ast->contents, NULL, 10);
         if (errno != 0) {
-            return lisp_value_error_new(ERR_BAD_NUMERIC_VALUE);
+            return get_null_lisp_value();
         }
         return lisp_value_number_new(number);
     }
@@ -97,36 +50,76 @@ lisp_value_t eval(mpc_ast_t *ast) {
         errno = 0;
         double number_decimal = strtod(ast->contents, NULL);
         if (errno != 0) {
-            return lisp_value_error_new(ERR_BAD_NUMERIC_VALUE);
+            return get_null_lisp_value();
         }
         return lisp_value_decimal_new(number_decimal);
     }
+    if (has_tag(ast, "symbol")) {
+        return lisp_value_symbol_new(ast->contents);
+    }
+    if (has_tag(ast, "sexpr")) {
+        lisp_value_t* sexpr_lisp_value = lisp_value_sexpr_new();
+        if (is_lisp_value_null(sexpr_lisp_value)) {
+            return sexpr_lisp_value;
+        }
+        int i = 1;
+        while (has_tag(ast->children[i], "expr")) {
+            lisp_value_t* current_parsed_lisp_value = parse_lisp_value(ast->children[i]);
+            if (is_lisp_value_null(current_parsed_lisp_value)) {
+                lisp_value_delete(sexpr_lisp_value);
+                return current_parsed_lisp_value;
+            }
+            bool ok = append_lisp_value(sexpr_lisp_value, current_parsed_lisp_value);
+            if (!ok) {
+                lisp_value_delete(current_parsed_lisp_value);
+                lisp_value_delete(sexpr_lisp_value);
+            }
+            i++;
+        }
+        return sexpr_lisp_value;
+    }
 
-    mpc_ast_t *operator = ast->children[1];
-    lisp_value_t first_expr_value = eval(ast->children[2]);
-    lisp_value_t result = execute_numeric_unary_operation(operator, first_expr_value);
+    return get_null_lisp_value();
+}
 
-    int i = 3;
+/* Assumes ast is not NULL and represents root(i.e my-own-lisp) */
+lisp_value_t* parse_root_lisp_value(mpc_ast_t* ast) {
+    lisp_value_t* root_lisp_value = lisp_value_root_new();
+    if (is_lisp_value_null(root_lisp_value)) {
+        return root_lisp_value;
+    }
+
+    int i = 1;
     while (has_tag(ast->children[i], "expr")) {
-        lisp_value_t current_expr_value = eval(ast->children[i]);
-        result = execute_operation(operator, result, current_expr_value);
+        lisp_value_t* current_parsed_lisp_value = parse_lisp_value(ast->children[i]);
+        if (is_lisp_value_null(current_parsed_lisp_value)) {
+            lisp_value_delete(root_lisp_value);
+            return current_parsed_lisp_value;
+        }
+        bool ok = append_lisp_value(root_lisp_value, current_parsed_lisp_value);
+        if (!ok) {
+            lisp_value_delete(current_parsed_lisp_value);
+            lisp_value_delete(root_lisp_value);
+            return get_null_lisp_value();
+        }
         i++;
     }
 
-    return result;
+    return root_lisp_value;
 }
 
 int main(int argc, char** argv) {
     mpc_parser_t* number = mpc_new("number");
     mpc_parser_t* decimal = mpc_new("decimal");
-    mpc_parser_t* operator = mpc_new("operator");
+    mpc_parser_t* symbol = mpc_new("symbol");
+    mpc_parser_t* sexpr = mpc_new("sexpr");
     mpc_parser_t* expr = mpc_new("expr");
     mpc_parser_t* my_own_lisp = mpc_new("my_own_lisp");
 
     mpca_lang(
         MPCA_LANG_DEFAULT,
         my_own_lisp_language,
-       number, decimal, operator, expr, my_own_lisp
+       number, decimal, symbol, sexpr, expr, my_own_lisp
     );
 
     puts("my-own-lisp version 0.0.1");
@@ -142,9 +135,11 @@ int main(int argc, char** argv) {
 
         mpc_result_t my_own_lisp_parse_result;
         if (mpc_parse("<stdin>", input_buff, my_own_lisp, &my_own_lisp_parse_result)) {
-            lisp_value_t result = eval(my_own_lisp_parse_result.output);
-            print_lisp_value(result);
-            putchar('\n');
+            lisp_value_t* root_lisp_value = parse_root_lisp_value(my_own_lisp_parse_result.output);
+            lisp_eval_result_t* eval_result = evaluate_root_lisp_value(root_lisp_value);
+            print_lisp_eval_result(eval_result);
+            lisp_value_delete(root_lisp_value);
+            lisp_eval_result_delete(eval_result);
             mpc_ast_delete(my_own_lisp_parse_result.output);
         } else {
             mpc_err_print(my_own_lisp_parse_result.error);
@@ -152,6 +147,6 @@ int main(int argc, char** argv) {
         }
     }
 
-    mpc_cleanup(4, number, operator, expr, my_own_lisp);
+    mpc_cleanup(7, number, decimal, symbol, sexpr, expr, my_own_lisp);
     return 0;
 }
