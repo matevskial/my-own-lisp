@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "tui/input_reader.h"
 #include "mpc/mpc.h"
+
+#include "tui/input_reader.h"
+#include "interpreter/interpreter.h"
 
 /* constexpr(keyword since C23) used so that we don't get variably modified at scope compiler error
  * while using variable to store the buffer size
@@ -34,57 +36,85 @@ bool has_tag(mpc_ast_t * ast, char * tag) {
     return strstr(ast->tag, tag) != NULL;
 }
 
-long execute_operation(mpc_ast_t* operation, long first_operand, long second_operand) {
+lisp_value_t execute_operation(mpc_ast_t* operation, lisp_value_t first_operand, lisp_value_t second_operand) {
+    if (is_lisp_value_error(first_operand)) {
+        return first_operand;
+    }
+    if (is_lisp_value_error(second_operand)) {
+        return second_operand;
+    }
+
     if (strcmp(operation->contents, "+") == 0) {
-        return first_operand + second_operand;
+        return lisp_value_new( first_operand.value + second_operand.value);
     }
     if (strcmp(operation->contents, "-") == 0) {
-        return first_operand - second_operand;
+        return lisp_value_new( first_operand.value - second_operand.value);
     }
     if (strcmp(operation->contents, "*") == 0) {
-        return first_operand * second_operand;
+        return lisp_value_new( first_operand.value * second_operand.value);
     }
     if (strcmp(operation->contents, "/") == 0) {
-        return first_operand / second_operand;
+        if (second_operand.value == 0) {
+            return lisp_value_error_new(ERR_DIV_ZERO);
+        }
+        return lisp_value_new( first_operand.value / second_operand.value);
     }
     if (strcmp(operation->contents, "%") == 0) {
-        return first_operand % second_operand;
+        if (second_operand.value == 0) {
+            return lisp_value_error_new(ERR_DIV_ZERO);
+        }
+        return lisp_value_new( first_operand.value % second_operand.value);
     }
     if (strcmp(operation->contents, "^") == 0) {
-        return (long) powl(first_operand, second_operand);
+        return lisp_value_new((long) powl(first_operand.value, second_operand.value));
     }
     if (strcmp(operation->contents, "min") == 0) {
-        return first_operand < second_operand ? first_operand : second_operand;
+        long min = first_operand.value < second_operand.value ? first_operand.value : second_operand.value;
+        return lisp_value_new(min);
     }
     if (strcmp(operation->contents, "max") == 0) {
-        return first_operand > second_operand ? first_operand : second_operand;
+        long max = first_operand.value > second_operand.value ? first_operand.value : second_operand.value;
+        return lisp_value_new(max);
     }
-    return 0;
+    return lisp_value_error_new(ERR_INVALID_OPERATOR);
 }
 
-long execute_numeric_unary_operation(mpc_ast_t* operation, long operand) {
+lisp_value_t execute_numeric_unary_operation(mpc_ast_t* operation, lisp_value_t operand) {
+    if (is_lisp_value_error(operand)) {
+        return operand;
+    }
     if (strcmp(operation->contents, "-") == 0) {
-        return -operand;
+        return lisp_value_new(-operand.value);
     }
     return operand;
 }
 
 /* Assumes ast is not NULL */
-long eval(mpc_ast_t *ast) {
+lisp_value_t eval(mpc_ast_t *ast) {
     if (has_tag(ast, "number")) {
-        return atoi(ast->contents);
+        errno = 0;
+        long number = strtol(ast->contents, NULL, 10);
+        if (errno != 0) {
+            return lisp_value_error_new(ERR_BAD_NUMERIC_VALUE);
+        }
+        return lisp_value_new(number);
     }
     if (has_tag(ast, "decimal_number")) {
-        return (long) atof(ast->contents);
+        errno = 0;
+        long number = (long )strtod(ast->contents, NULL);
+        if (errno != 0) {
+            return lisp_value_error_new(ERR_BAD_NUMERIC_VALUE);
+        }
+        return lisp_value_new(number);
     }
 
     mpc_ast_t *operator = ast->children[1];
-    long first_expr_value = eval(ast->children[2]);
-    long result = execute_numeric_unary_operation(operator, first_expr_value);
+    lisp_value_t first_expr_value = eval(ast->children[2]);
+    lisp_value_t result = execute_numeric_unary_operation(operator, first_expr_value);
 
     int i = 3;
     while (has_tag(ast->children[i], "expr")) {
-        long current_expr_value = eval(ast->children[i]);
+        lisp_value_t current_expr_value = eval(ast->children[i]);
         result = execute_operation(operator, result, current_expr_value);
         i++;
     }
@@ -118,8 +148,9 @@ int main(int argc, char** argv) {
 
         mpc_result_t my_own_lisp_parse_result;
         if (mpc_parse("<stdin>", input_buff, my_own_lisp, &my_own_lisp_parse_result)) {
-            long result = eval(my_own_lisp_parse_result.output);
-            printf("%ld\n", result);
+            lisp_value_t result = eval(my_own_lisp_parse_result.output);
+            print_lisp_value(result);
+            putchar('\n');
             mpc_ast_delete(my_own_lisp_parse_result.output);
         } else {
             mpc_err_print(my_own_lisp_parse_result.error);
