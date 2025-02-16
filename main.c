@@ -26,9 +26,9 @@ static char *chapter_6_bonus_mark_language =
 static char *my_own_lisp_language =
     "                                                                                                \
         number            : /-?[0-9]+/ ;                                                             \
-        decimal_number    : /-?[0-9]*\\.[0-9]+/ ;                                                    \
+        decimal           : /-?[0-9]*\\.[0-9]+/ ;                                                    \
         operator          : '+' | '-' | '*' | '/' | '%' | '^' | \"min\" | \"max\" ;                  \
-        expr              : <decimal_number> | <number> | '(' <operator> <expr>+ ')' ;               \
+        expr              : <decimal> | <number> | '(' <operator> <expr>+ ')' ;                      \
         my_own_lisp       : /^/ <operator> <expr>+ /$/ ;                                             \
     ";
 
@@ -99,7 +99,7 @@ lisp_value_t eval(mpc_ast_t *ast) {
         }
         return lisp_value_new(number);
     }
-    if (has_tag(ast, "decimal_number")) {
+    if (has_tag(ast, "decimal")) {
         errno = 0;
         long number = (long )strtod(ast->contents, NULL);
         if (errno != 0) {
@@ -124,7 +124,7 @@ lisp_value_t eval(mpc_ast_t *ast) {
 
 int main(int argc, char** argv) {
     mpc_parser_t* number = mpc_new("number");
-    mpc_parser_t* decimal_number = mpc_new("decimal_number");
+    mpc_parser_t* decimal = mpc_new("decimal");
     mpc_parser_t* operator = mpc_new("operator");
     mpc_parser_t* expr = mpc_new("expr");
     mpc_parser_t* my_own_lisp = mpc_new("my_own_lisp");
@@ -132,7 +132,7 @@ int main(int argc, char** argv) {
     mpca_lang(
         MPCA_LANG_DEFAULT,
         my_own_lisp_language,
-       number, decimal_number, operator, expr, my_own_lisp
+       number, decimal, operator, expr, my_own_lisp
     );
 
     puts("my-own-lisp version 0.0.1");
