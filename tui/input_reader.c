@@ -12,7 +12,10 @@
 #include <string.h>
 #endif
 
-size_t read_line_stdin_scanf(char *buff, size_t size) {
+size_t read_line_stdin_scanf(const char *prompt, char *buff, size_t size) {
+    fputs(prompt, stdout);
+    fflush(stdout);
+
     char *input = malloc(sizeof(char) * size);
     // scanf resizes buffer to arbitrary length - no protection from long lines
     int result = scanf("%s", input);
@@ -30,7 +33,10 @@ size_t read_line_stdin_scanf(char *buff, size_t size) {
     return size_to_copy;
 }
 
-size_t read_line_stdin_fgets(char *buff, size_t size) {
+size_t read_line_stdin_fgets(const char *prompt, char *buff, size_t size) {
+    fputs(prompt, stdout);
+    fflush(stdout);
+
     char* result = fgets(buff, size, stdin);
     if (result == NULL) {
         return 0;
@@ -64,17 +70,12 @@ size_t read_line_stdin_fgets(char *buff, size_t size) {
     return input_final_size;
 }
 
-size_t read_line_stdin(const char *prompt, char *buff, size_t size) {
-    if (size < 2) {
-        return 0;
-    }
-
 #if defined(_WINDOWS) || defined(READ_LINE_STDIN_WITH_STDIO)
-    fputs(prompt, stdout);
-    fflush(stdout);
-
-    return read_line_stdin_fgets(buff, size);
+size_t read_line_stdin_internal(const char *prompt, char *buff, size_t size) {
+    return read_line_stdin_fgets(prompt, buff, size);
+}
 #elif defined(_UNIX_STYLE_OS)
+size_t read_line_stdin_internal(const char *prompt, char *buff, size_t size) {
     char *input = readline(prompt);
     if (input == NULL) {
         return 0;
@@ -93,7 +94,28 @@ size_t read_line_stdin(const char *prompt, char *buff, size_t size) {
 
     free(input);
     return size_to_copy;
+}
 #else
-    return 0;
+size_t read_line_stdin_internal(const char *prompt, char *buff, size_t size) {
+}
 #endif
+
+void add_history_internal(const char *buff) {
+#if defined(_UNIX_STYLE_OS)
+    add_history(buff);
+#endif
+}
+
+size_t read_line_stdin(const char *prompt, char *buff, size_t size) {
+    /* Should check with 2, not with 1 since fgets does not wait for user input if we pass size value 1.
+     * For repl implementations, it would result in printing the prompt infinitely */
+    if (size < 2) {
+        return 0;
+    }
+
+    size_t line_size = read_line_stdin_internal(prompt, buff, size);
+    if (line_size > 1) {
+        add_history_internal(buff);
+    }
+    return line_size;
 }
