@@ -622,6 +622,7 @@ lisp_value_t * builtin_operation(lisp_value_t* value) {
         first_operand = next_value;
     }
 
+    lisp_value_delete(operation);
     lisp_value_delete(value);
     return first_operand;
 }
