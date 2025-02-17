@@ -134,6 +134,28 @@ lisp_value_t* get_null_lisp_value() {
     return &null_lisp_value;
 }
 
+lisp_value_t * lisp_value_set_child(lisp_value_t *value, int index, lisp_value_t *child) {
+    value->values[index] = child;
+}
+
+lisp_value_t* lisp_value_pop_child(lisp_value_t *value, int index) {
+    /* Find the item at "i" */
+    lisp_value_t* popped = value->values[index];
+
+    /* Shift memory after the item at "i" over the top */
+    memmove(
+        &value->values[index],
+        &value->values[index + 1],
+      sizeof(lisp_value_t*) * (value->count - index -1));
+
+    /* Decrease the count of items in the list */
+    value->count--;
+
+    /* Reallocate the memory used, so we not get double free when deleting lisp_value_t?? */
+    value->values = realloc(value->values, sizeof(lisp_value_t*) * value->count);
+    return popped;
+}
+
 bool is_lisp_value_error(lisp_value_t* lisp_value) {
     return !lisp_value->error == NO_ERROR;
 }
@@ -517,4 +539,145 @@ lisp_eval_result_t* evaluate_root_lisp_value(lisp_value_t* value) {
     //     }
     // }
     // return lisp_eval_result_new(evaluated);
+}
+
+lisp_value_t * negate_lisp_value_destructive(lisp_value_t * value) {
+    if (value->value_type == VAL_NUMBER) {
+        value->value_number = -value->value_number;
+        return value;
+    }
+    if (value->value_type == VAL_DECIMAL) {
+        value->value_decimal = -value->value_decimal;
+        return value;
+    }
+
+    lisp_value_t* value_error = lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
+    lisp_value_delete(value);
+    return value_error;
+}
+
+lisp_value_t* execute_unary_operation_destructive(char* operation, lisp_value_t* operand) {
+    if (is_lisp_value_error(operand)) {
+        return operand;
+    }
+    if (strcmp(operation, "-") == 0) {
+        return negate_lisp_value_destructive(operand);
+    }
+    return operand;
+}
+
+lisp_value_t * add_lisp_values_destructive(lisp_value_t* value1, lisp_value_t* value2) {
+    if (value1->value_type == VAL_NUMBER && value2->value_type == VAL_NUMBER) {
+        lisp_value_t* result = lisp_value_number_new(value1->value_number + value2->value_number);
+        lisp_value_delete(value1);
+        lisp_value_delete(value2);
+        return result;
+    }
+    if (value1->value_type == VAL_DECIMAL && value2->value_type == VAL_DECIMAL) {
+        lisp_value_t* result = lisp_value_decimal_new(value1->value_decimal + value2->value_decimal);
+        lisp_value_delete(value1);
+        lisp_value_delete(value2);
+        return result;
+    }
+    if (value1->value_type == VAL_NUMBER && value2->value_type == VAL_DECIMAL) {
+        lisp_value_t* result = lisp_value_decimal_new((double) value1->value_number + value2->value_decimal);
+        lisp_value_delete(value1);
+        lisp_value_delete(value2);
+        return result;
+    }
+    if (value1->value_type == VAL_DECIMAL && value2->value_type == VAL_NUMBER) {
+        lisp_value_t* result = lisp_value_decimal_new(value1->value_decimal + (double) value2->value_number);
+        lisp_value_delete(value1);
+        lisp_value_delete(value2);
+        return result;
+    }
+
+    lisp_value_delete(value1);
+    return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
+}
+
+lisp_value_t* execute_binary_operation_destructive(char* operation, lisp_value_t* first_operand, lisp_value_t* second_operand) {
+    if (strcmp(operation, "+") == 0) {
+        return add_lisp_values_destructive(first_operand, second_operand);
+    }
+
+    lisp_value_delete(first_operand);
+    lisp_value_delete(second_operand);
+    return lisp_value_error_new(ERR_INVALID_OPERATOR);
+}
+
+/* Assumes value is sexpr of one operator and at least one operand */
+lisp_value_t * builtin_operation(lisp_value_t* value) {
+    lisp_value_t* operation = lisp_value_pop_child(value, 0);
+    if (operation->value_type != VAL_SYMBOL) {
+        lisp_value_delete(operation);
+        lisp_value_delete(value);
+        return lisp_value_error_new(ERR_INVALID_OPERATOR);
+    }
+
+    lisp_value_t* first_operand = execute_unary_operation_destructive(operation->value_symbol, lisp_value_pop_child(value, 0));
+    while (value->count > 0) {
+        lisp_value_t* next_value = execute_binary_operation_destructive(operation->value_symbol, first_operand, lisp_value_pop_child(value, 0));
+        first_operand = next_value;
+    }
+
+    lisp_value_delete(value);
+    return first_operand;
+}
+
+lisp_value_t* evaluate_lisp_value_destructive(lisp_value_t* value) {
+    if (value->value_type == VAL_NUMBER) {
+        return value;
+    }
+    if (value->value_type == VAL_DECIMAL) {
+        return value;
+    }
+    if (value->value_type == VAL_SYMBOL) {
+        return value;
+    }
+
+    if (value->value_type == VAL_SEXPR || value->value_type == VAL_ROOT) {
+        int index_of_first_evaluation_with_error = -1;
+        for (int i = 0; i < value->count; i++) {
+            lisp_value_set_child(value, i, evaluate_lisp_value_destructive(value->values[i]));
+            if (index_of_first_evaluation_with_error == -1 && is_lisp_value_error(value->values[i])) {
+                index_of_first_evaluation_with_error = i;
+            }
+        }
+
+        if (value->count < 1) {
+            return value;
+        }
+
+        if (value->count == 1) {
+            lisp_value_t* evaluated_child = lisp_value_pop_child(value, 0);
+            lisp_value_delete(value);
+            return evaluated_child;
+        }
+
+        if (index_of_first_evaluation_with_error != -1) {
+            lisp_value_t* evaluated_to_error_child = lisp_value_pop_child(value, index_of_first_evaluation_with_error);
+            lisp_value_delete(value);
+            return evaluated_to_error_child;
+        }
+
+        return builtin_operation(value);
+    }
+}
+
+/* Evaluates lisp_value_t* in a destructive way,
+ * meaning, calling this function with the same parameter multiple times should work and evaluate the same as the first call
+ *
+ * Additional implementation notes:
+ * The functions that return a new lisp_value_t* will have the responsibility of deleting the input lisp_value_t*
+ */
+lisp_eval_result_t* evaluate_root_lisp_value_destructive(lisp_value_t* value) {
+    if (value == &null_lisp_value || value->value_type != VAL_ROOT) {
+        lisp_value_delete(value);
+        return lisp_eval_result_error_new("invalid root lisp value");
+    }
+
+    /* this code is valid if we treat root as SEXPR */
+    lisp_value_t* evaluated = evaluate_lisp_value_destructive(value);
+    return lisp_eval_result_from_lisp_value(evaluated);
 }

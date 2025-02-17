@@ -39,6 +39,8 @@ lisp_value_t* lisp_value_sexpr_new();
 lisp_value_t* lisp_value_root_new();
 lisp_value_t* lisp_value_error_new(lisp_error_type_t error);
 lisp_value_t* get_null_lisp_value();
+lisp_value_t* lisp_value_set_child(lisp_value_t* value, int index, lisp_value_t* child);
+lisp_value_t* lisp_value_pop_child(lisp_value_t * value, int index);
 void lisp_value_delete(lisp_value_t *lisp_value);
 
 lisp_eval_result_t* lisp_eval_result_new(lisp_value_t* value);
@@ -63,3 +65,4 @@ lisp_value_t* max_lisp_value(lisp_value_t* value1, lisp_value_t* value2);
 lisp_value_t* negate_lisp_value(lisp_value_t* value);
 
 lisp_eval_result_t* evaluate_root_lisp_value(lisp_value_t* value);
+lisp_eval_result_t* evaluate_root_lisp_value_destructive(lisp_value_t* value);

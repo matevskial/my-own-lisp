@@ -146,11 +146,15 @@ int main(int argc, char** argv) {
         mpc_result_t my_own_lisp_parse_result;
         if (mpc_parse("<stdin>", input_buff, my_own_lisp, &my_own_lisp_parse_result)) {
             lisp_value_t* root_lisp_value = parse_root_lisp_value(my_own_lisp_parse_result.output);
-            lisp_eval_result_t* eval_result = evaluate_root_lisp_value(root_lisp_value);
-            print_lisp_eval_result(eval_result);
+            // lisp_eval_result_t* eval_result = evaluate_root_lisp_value(root_lisp_value);
+            lisp_eval_result_t* eval_result_1 = evaluate_root_lisp_value_destructive(root_lisp_value);
+            // print_lisp_eval_result(eval_result);
+            // putchar('\n');
+            print_lisp_eval_result(eval_result_1);
             putchar('\n');
-            lisp_value_delete(root_lisp_value);
-            lisp_eval_result_delete(eval_result);
+            // lisp_value_delete(root_lisp_value);
+            // lisp_eval_result_delete(eval_result);
+            lisp_eval_result_delete(eval_result_1);
             mpc_ast_delete(my_own_lisp_parse_result.output);
         } else {
             mpc_err_print(my_own_lisp_parse_result.error);
