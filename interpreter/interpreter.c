@@ -492,6 +492,8 @@ void lisp_eval_result_delete(lisp_eval_result_t* lisp_eval_result) {
     }
 }
 
+/* Evaluates lisp_value_t* in a non-destructive way,
+ * meaning, calling this function with the same parameter multiple times should work and evaluate the same as the first call */
 lisp_eval_result_t* evaluate_root_lisp_value(lisp_value_t* value) {
     if (value == &null_lisp_value || value->value_type != VAL_ROOT) {
         return lisp_eval_result_error_new("invalid root lisp value");
