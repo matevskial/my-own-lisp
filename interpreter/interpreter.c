@@ -382,6 +382,11 @@ lisp_value_t* execute_unary_operation(char* operation, lisp_value_t* operand) {
     return lisp_value_error_new(ERR_INVALID_OPERATOR);
 }
 
+/**
+ *
+ * @param value to be evaluated, can be null_lisp_value, assume is never NULL
+ * @return evaluated lisp_value, can be error, can never be null_lisp_value
+ */
 lisp_value_t* evaluate_lisp_value(lisp_value_t* value) {
     if (value->value_type == VAL_NUMBER) {
         return lisp_value_number_new(value->value_number);
@@ -422,7 +427,13 @@ lisp_value_t* evaluate_lisp_value(lisp_value_t* value) {
             if (is_lisp_value_error(second_operand)) {
                 return second_operand;
             }
+
             lisp_value_t* next_value = execute_binary_operation(operation->value_symbol, first_operand, second_operand);
+            if (is_lisp_value_error(next_value)) {
+                lisp_value_delete(second_operand);
+                return next_value;
+            }
+
             lisp_value_delete(second_operand);
             lisp_value_delete(first_operand);
             first_operand = next_value;
@@ -434,7 +445,7 @@ lisp_value_t* evaluate_lisp_value(lisp_value_t* value) {
     return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
 }
 
-lisp_eval_result_t * lisp_eval_result_new(lisp_value_t *value) {
+lisp_eval_result_t* lisp_eval_result_from_lisp_value(lisp_value_t *value) {
     lisp_eval_result_t* result = malloc(sizeof(lisp_eval_result_t));
     result->value = value;
     result->error = NULL;
@@ -449,6 +460,16 @@ lisp_eval_result_t * lisp_eval_result_error_new(char *error_message) {
     return result;
 }
 
+lisp_eval_result_t * lisp_eval_result_new(lisp_value_t *value) {
+    if (value == &null_lisp_value) {
+        return lisp_eval_result_error_new("null lisp_value");
+    }
+    if (is_lisp_value_error(value)) {
+        return lisp_eval_result_error_new(get_lisp_value_error_message(value));
+    }
+    return lisp_eval_result_from_lisp_value(value);
+}
+
 void lisp_eval_result_delete(lisp_eval_result_t* lisp_eval_result) {
     lisp_value_delete(lisp_eval_result->value);
     if (lisp_eval_result->error != NULL) {
@@ -461,11 +482,11 @@ lisp_eval_result_t* evaluate_root_lisp_value(lisp_value_t* value) {
         return lisp_eval_result_error_new("invalid root lisp value");
     }
 
-    lisp_value_t* evaluated = get_null_lisp_value();
+    lisp_value_t* evaluated = &null_lisp_value;
     for (int i = 0; i < value->count; i++) {
         evaluated = evaluate_lisp_value(value->values[i]);
-        if (is_lisp_value_error(evaluated)) {
-            lisp_eval_result_t* eval_result = lisp_eval_result_error_new(get_lisp_value_error_message(evaluated));
+        if (is_lisp_value_error(evaluated) || is_lisp_value_null(evaluated)) {
+            lisp_eval_result_t* eval_result = lisp_eval_result_new(evaluated);
             lisp_value_delete(evaluated);
             return eval_result;
         }

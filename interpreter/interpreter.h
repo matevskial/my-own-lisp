@@ -41,7 +41,6 @@ lisp_value_t* lisp_value_error_new(lisp_error_type_t error);
 lisp_value_t* get_null_lisp_value();
 void lisp_value_delete(lisp_value_t *lisp_value);
 
-lisp_eval_result_t* lisp_eval_result_error_new(char* error_message);
 lisp_eval_result_t* lisp_eval_result_new(lisp_value_t* value);
 void lisp_eval_result_delete(lisp_eval_result_t* lisp_eval_result);
 

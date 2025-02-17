@@ -37,12 +37,17 @@ bool has_tag(mpc_ast_t * ast, char * tag) {
     return strstr(ast->tag, tag) != NULL;
 }
 
+/*
+* Will return get_null_lisp_value() if the lisp_value is not parsed completelly
+*  * if the ast does not represent the language that this function parses
+*  * if the program is not able to allocate lisp_value_t* objects
+*/
 lisp_value_t* parse_lisp_value(mpc_ast_t* ast) {
     if (has_tag(ast, "number")) {
         errno = 0;
         long number = strtol(ast->contents, NULL, 10);
         if (errno != 0) {
-            return get_null_lisp_value();
+            return lisp_value_error_new(ERR_BAD_NUMERIC_VALUE);
         }
         return lisp_value_number_new(number);
     }
@@ -50,7 +55,7 @@ lisp_value_t* parse_lisp_value(mpc_ast_t* ast) {
         errno = 0;
         double number_decimal = strtod(ast->contents, NULL);
         if (errno != 0) {
-            return get_null_lisp_value();
+            return lisp_value_error_new(ERR_BAD_NUMERIC_VALUE);
         }
         return lisp_value_decimal_new(number_decimal);
     }
@@ -60,19 +65,20 @@ lisp_value_t* parse_lisp_value(mpc_ast_t* ast) {
     if (has_tag(ast, "sexpr")) {
         lisp_value_t* sexpr_lisp_value = lisp_value_sexpr_new();
         if (is_lisp_value_null(sexpr_lisp_value)) {
-            return sexpr_lisp_value;
+            return get_null_lisp_value();
         }
         int i = 1;
         while (has_tag(ast->children[i], "expr")) {
             lisp_value_t* current_parsed_lisp_value = parse_lisp_value(ast->children[i]);
             if (is_lisp_value_null(current_parsed_lisp_value)) {
                 lisp_value_delete(sexpr_lisp_value);
-                return current_parsed_lisp_value;
+                return get_null_lisp_value();
             }
             bool ok = append_lisp_value(sexpr_lisp_value, current_parsed_lisp_value);
             if (!ok) {
                 lisp_value_delete(current_parsed_lisp_value);
                 lisp_value_delete(sexpr_lisp_value);
+                return get_null_lisp_value();
             }
             i++;
         }
@@ -82,11 +88,15 @@ lisp_value_t* parse_lisp_value(mpc_ast_t* ast) {
     return get_null_lisp_value();
 }
 
-/* Assumes ast is not NULL and represents root(i.e my-own-lisp) */
+/* Assumes ast is not NULL and represents root(i.e my-own-lisp)
+ * Will return get_null_lisp_value() if the lisp_value is not parsed completelly
+ *  * if the ast does not represent the language that this function parses
+ *  * if the program is not able to allocate lisp_value_t* objects
+ */
 lisp_value_t* parse_root_lisp_value(mpc_ast_t* ast) {
     lisp_value_t* root_lisp_value = lisp_value_root_new();
     if (is_lisp_value_null(root_lisp_value)) {
-        return root_lisp_value;
+        return get_null_lisp_value();
     }
 
     int i = 1;
@@ -94,7 +104,7 @@ lisp_value_t* parse_root_lisp_value(mpc_ast_t* ast) {
         lisp_value_t* current_parsed_lisp_value = parse_lisp_value(ast->children[i]);
         if (is_lisp_value_null(current_parsed_lisp_value)) {
             lisp_value_delete(root_lisp_value);
-            return current_parsed_lisp_value;
+            return get_null_lisp_value();
         }
         bool ok = append_lisp_value(root_lisp_value, current_parsed_lisp_value);
         if (!ok) {
