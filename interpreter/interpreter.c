@@ -512,6 +512,7 @@ void lisp_eval_result_delete(lisp_eval_result_t* lisp_eval_result) {
     if (lisp_eval_result->error != NULL) {
         free(lisp_eval_result->error);
     }
+    free(lisp_eval_result);
 }
 
 /* Evaluates lisp_value_t* in a non-destructive way,
