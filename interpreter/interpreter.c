@@ -157,7 +157,11 @@ lisp_value_t* lisp_value_pop_child(lisp_value_t *value, int index) {
      * count is 16, the next larger value divisible by 10 is 20
      *  This is in order to not break the implementation for appending a child to sexpr lisp_value_t*
      * */
-    value->values = realloc(value->values, sizeof(lisp_value_t*) * (value->count + (10 - value->count % 10)));
+    lisp_value_t** new_values = realloc(value->values, sizeof(lisp_value_t*) * (value->count + (10 - value->count % 10)));
+    if (new_values == NULL) {
+        return &null_lisp_value;
+    }
+    value->values = new_values;
     return popped;
 }
 
@@ -489,14 +493,14 @@ lisp_value_t* evaluate_lisp_value(lisp_value_t* value) {
     return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
 }
 
-lisp_eval_result_t* lisp_eval_result_from_lisp_value(lisp_value_t *value) {
+lisp_eval_result_t* lisp_eval_result_from_lisp_value(lisp_value_t* value) {
     lisp_eval_result_t* result = malloc(sizeof(lisp_eval_result_t));
     result->value = value;
     result->error = NULL;
     return result;
 }
 
-lisp_eval_result_t * lisp_eval_result_error_new(char *error_message) {
+lisp_eval_result_t* lisp_eval_result_error_new(char* error_message) {
     lisp_eval_result_t *result = malloc(sizeof(lisp_eval_result_t));
     result->error = malloc( sizeof(char) * (strlen(error_message) + 1));
     strcpy(result->error, error_message);
@@ -504,7 +508,7 @@ lisp_eval_result_t * lisp_eval_result_error_new(char *error_message) {
     return result;
 }
 
-lisp_eval_result_t * lisp_eval_result_new(lisp_value_t *value) {
+lisp_eval_result_t* lisp_eval_result_new(lisp_value_t* value) {
     if (value == &null_lisp_value) {
         return lisp_eval_result_error_new("null lisp_value");
     }
@@ -569,16 +573,17 @@ lisp_value_t * negate_lisp_value_destructive(lisp_value_t * value) {
 }
 
 lisp_value_t* execute_unary_operation_destructive(char* operation, lisp_value_t* operand) {
-    if (is_lisp_value_error(operand)) {
-        return operand;
+    if (operand == &null_lisp_value) {
+        return &null_lisp_value;
     }
+
     if (strcmp(operation, "-") == 0) {
         return negate_lisp_value_destructive(operand);
     }
     return operand;
 }
 
-lisp_value_t * add_lisp_values_destructive(lisp_value_t* value1, lisp_value_t* value2) {
+lisp_value_t* add_lisp_values_destructive(lisp_value_t* value1, lisp_value_t* value2) {
     if (value1->value_type == VAL_NUMBER && value2->value_type == VAL_NUMBER) {
         lisp_value_t* result = lisp_value_number_new(value1->value_number + value2->value_number);
         lisp_value_delete(value1);
@@ -609,6 +614,12 @@ lisp_value_t * add_lisp_values_destructive(lisp_value_t* value1, lisp_value_t* v
 }
 
 lisp_value_t* execute_binary_operation_destructive(char* operation, lisp_value_t* first_operand, lisp_value_t* second_operand) {
+    if (first_operand == &null_lisp_value || second_operand == &null_lisp_value) {
+        lisp_value_delete(first_operand);
+        lisp_value_delete(second_operand);
+        return &null_lisp_value;
+    }
+
     if (strcmp(operation, "+") == 0) {
         return add_lisp_values_destructive(first_operand, second_operand);
     }
@@ -619,8 +630,12 @@ lisp_value_t* execute_binary_operation_destructive(char* operation, lisp_value_t
 }
 
 /* Assumes value is sexpr of one operator and at least one operand */
-lisp_value_t * builtin_operation(lisp_value_t* value) {
+lisp_value_t* builtin_operation(lisp_value_t* value) {
     lisp_value_t* operation = lisp_value_pop_child(value, 0);
+    if (operation == &null_lisp_value) {
+        lisp_value_delete(value);
+        return &null_lisp_value;
+    }
     if (operation->value_type != VAL_SYMBOL) {
         lisp_value_delete(operation);
         lisp_value_delete(value);
@@ -629,6 +644,14 @@ lisp_value_t * builtin_operation(lisp_value_t* value) {
 
     lisp_value_t* first_operand = execute_unary_operation_destructive(operation->value_symbol, lisp_value_pop_child(value, 0));
     while (value->count > 0) {
+        if (first_operand == &null_lisp_value) {
+            lisp_value_delete(operation);
+            lisp_value_delete(value);
+            return &null_lisp_value;
+        }
+        if (is_lisp_value_error(first_operand)) {
+            return first_operand;
+        }
         lisp_value_t* next_value = execute_binary_operation_destructive(operation->value_symbol, first_operand, lisp_value_pop_child(value, 0));
         first_operand = next_value;
     }
@@ -639,6 +662,9 @@ lisp_value_t * builtin_operation(lisp_value_t* value) {
 }
 
 lisp_value_t* evaluate_lisp_value_destructive(lisp_value_t* value) {
+    if (value == &null_lisp_value) {
+        return value;
+    }
     if (value->value_type == VAL_NUMBER) {
         return value;
     }
@@ -650,11 +676,16 @@ lisp_value_t* evaluate_lisp_value_destructive(lisp_value_t* value) {
     }
 
     if (value->value_type == VAL_SEXPR || value->value_type == VAL_ROOT) {
-        int index_of_first_evaluation_with_error = -1;
         for (int i = 0; i < value->count; i++) {
             lisp_value_set_child(value, i, evaluate_lisp_value_destructive(value->values[i]));
-            if (index_of_first_evaluation_with_error == -1 && is_lisp_value_error(value->values[i])) {
-                index_of_first_evaluation_with_error = i;
+            if (is_lisp_value_error(value->values[i])) {
+                lisp_value_t* error_value = lisp_value_error_new(value->values[i]->error);
+                lisp_value_delete(value);
+                return error_value;
+            }
+            if (value->values[i] == &null_lisp_value) {
+                lisp_value_delete(value);
+                return &null_lisp_value;
             }
         }
 
@@ -666,12 +697,6 @@ lisp_value_t* evaluate_lisp_value_destructive(lisp_value_t* value) {
             lisp_value_t* evaluated_child = lisp_value_pop_child(value, 0);
             lisp_value_delete(value);
             return evaluated_child;
-        }
-
-        if (index_of_first_evaluation_with_error != -1) {
-            lisp_value_t* evaluated_to_error_child = lisp_value_pop_child(value, index_of_first_evaluation_with_error);
-            lisp_value_delete(value);
-            return evaluated_to_error_child;
         }
 
         return builtin_operation(value);
@@ -692,7 +717,7 @@ lisp_eval_result_t* evaluate_root_lisp_value_destructive(lisp_value_t* value) {
 
     /* this code is valid if we treat root as SEXPR */
     lisp_value_t* evaluated = evaluate_lisp_value_destructive(value);
-    return lisp_eval_result_from_lisp_value(evaluated);
+    return lisp_eval_result_new(evaluated);
 }
 
 //// end evaluate destructive imlementation
