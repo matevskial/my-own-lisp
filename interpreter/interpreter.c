@@ -397,7 +397,7 @@ lisp_value_t* evaluate_lisp_value(lisp_value_t* value) {
     if (value->value_type == VAL_SYMBOL) {
         return lisp_value_symbol_new(value->value_symbol);
     }
-    if (value->value_type == VAL_SEXPR) {
+    if (value->value_type == VAL_SEXPR || value->value_type == VAL_ROOT) {
         if (value->count < 1) {
             return lisp_value_error_new(ERR_BAD_SEXPR);
         }
@@ -482,17 +482,22 @@ lisp_eval_result_t* evaluate_root_lisp_value(lisp_value_t* value) {
         return lisp_eval_result_error_new("invalid root lisp value");
     }
 
-    lisp_value_t* evaluated = &null_lisp_value;
-    for (int i = 0; i < value->count; i++) {
-        evaluated = evaluate_lisp_value(value->values[i]);
-        if (is_lisp_value_error(evaluated) || is_lisp_value_null(evaluated)) {
-            lisp_eval_result_t* eval_result = lisp_eval_result_new(evaluated);
-            lisp_value_delete(evaluated);
-            return eval_result;
-        }
-        if (i + 1 != value->count) {
-            lisp_value_delete(evaluated);
-        }
-    }
-    return lisp_eval_result_new(evaluated);
+    /* this code is valid if we treat root as SEXPR */
+    lisp_value_t* evaluated = evaluate_lisp_value(value);
+    return lisp_eval_result_from_lisp_value(evaluated);
+
+    /* this code is valid if we don't treat root as SEXPR */
+    // lisp_value_t* evaluated = &null_lisp_value;
+    // for (int i = 0; i < value->count; i++) {
+    //     evaluated = evaluate_lisp_value(value->values[i]);
+    //     if (is_lisp_value_error(evaluated) || is_lisp_value_null(evaluated)) {
+    //         lisp_eval_result_t* eval_result = lisp_eval_result_new(evaluated);
+    //         lisp_value_delete(evaluated);
+    //         return eval_result;
+    //     }
+    //     if (i + 1 != value->count) {
+    //         lisp_value_delete(evaluated);
+    //     }
+    // }
+    // return lisp_eval_result_new(evaluated);
 }
