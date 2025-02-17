@@ -148,6 +148,7 @@ int main(int argc, char** argv) {
             lisp_value_t* root_lisp_value = parse_root_lisp_value(my_own_lisp_parse_result.output);
             lisp_eval_result_t* eval_result = evaluate_root_lisp_value(root_lisp_value);
             print_lisp_eval_result(eval_result);
+            putchar('\n');
             lisp_value_delete(root_lisp_value);
             lisp_eval_result_delete(eval_result);
             mpc_ast_delete(my_own_lisp_parse_result.output);

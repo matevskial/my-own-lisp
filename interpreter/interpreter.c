@@ -159,6 +159,20 @@ char *get_lisp_value_error_message(lisp_value_t* lisp_value) {
     }
 }
 
+void print_lisp_expr(lisp_value_t* lisp_value, char open, char close) {
+    if (lisp_value->value_type == VAL_SEXPR || lisp_value->value_type == VAL_ROOT) {
+        putchar(open);
+        for (int i = 0; i < lisp_value->count; i++) {
+            print_lisp_value(lisp_value->values[i]);
+
+            if (i + 1 < lisp_value->count) {
+                putchar(' ');
+            }
+        }
+        putchar(close);
+    }
+}
+
 void print_lisp_value(lisp_value_t* lisp_value) {
     if (lisp_value == &null_lisp_value) {
         return;
@@ -173,14 +187,15 @@ void print_lisp_value(lisp_value_t* lisp_value) {
             printf("%f", lisp_value->value_decimal);
         } else if (lisp_value->value_type == VAL_SYMBOL) {
             printf("symbol: %s", lisp_value->value_symbol);
+        } else if (lisp_value->value_type == VAL_SEXPR || lisp_value->value_type == VAL_ROOT) {
+            print_lisp_expr(lisp_value, '(', ')');
         }
     }
-    putchar('\n');
 }
 
 void print_lisp_eval_result(lisp_eval_result_t *lisp_eval_result) {
     if (lisp_eval_result->error != NULL) {
-        printf("error: %s\n", lisp_eval_result->error);
+        printf("error: %s", lisp_eval_result->error);
     } else {
         print_lisp_value(lisp_eval_result->value);
     }
