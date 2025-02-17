@@ -414,11 +414,11 @@ lisp_value_t* evaluate_lisp_value(lisp_value_t* value) {
     }
     if (value->value_type == VAL_SEXPR || value->value_type == VAL_ROOT) {
         if (value->count < 1) {
-            return lisp_value_error_new(ERR_BAD_SEXPR);
+            return lisp_value_sexpr_new();
         }
 
         if (value->count == 1) {
-            return lisp_value_error_new(ERR_BAD_SEXPR);
+            return evaluate_lisp_value(value->values[0]);
         }
 
         lisp_value_t* operation = value->values[0];
