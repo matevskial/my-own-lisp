@@ -139,10 +139,10 @@ lisp_value_t * lisp_value_set_child(lisp_value_t *value, int index, lisp_value_t
 }
 
 lisp_value_t* lisp_value_pop_child(lisp_value_t *value, int index) {
-    /* Find the item at "i" */
+    /* Find the item at "iindex" */
     lisp_value_t* popped = value->values[index];
 
-    /* Shift memory after the item at "i" over the top */
+    /* Shift memory after the item at "index" over the top */
     memmove(
         &value->values[index],
         &value->values[index + 1],
@@ -151,8 +151,13 @@ lisp_value_t* lisp_value_pop_child(lisp_value_t *value, int index) {
     /* Decrease the count of items in the list */
     value->count--;
 
-    /* Reallocate the memory used, so we not get double free when deleting lisp_value_t?? */
-    value->values = realloc(value->values, sizeof(lisp_value_t*) * value->count);
+    /* Reallocate the memory used, so the values points to a contiguous blocks of `count` lisp_value_t* items */
+
+    /* reallocate with size that is the first value larger or equal to count which is divisible by 10, for example if
+     * count is 16, the next larger value divisible by 10 is 20
+     *  This is in order to not break the implementation for appending a child to sexpr lisp_value_t*
+     * */
+    value->values = realloc(value->values, sizeof(lisp_value_t*) * (value->count + (10 - value->count % 10)));
     return popped;
 }
 
