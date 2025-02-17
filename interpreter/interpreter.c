@@ -228,6 +228,8 @@ void print_lisp_eval_result(lisp_eval_result_t *lisp_eval_result) {
     }
 }
 
+//// evaluate non-destructive implementation
+
 lisp_value_t* add_lisp_values(lisp_value_t* value1, lisp_value_t* value2) {
     if (value1->value_type == VAL_NUMBER && value2->value_type == VAL_NUMBER) {
         return lisp_value_number_new(value1->value_number + value2->value_number);
@@ -547,6 +549,10 @@ lisp_eval_result_t* evaluate_root_lisp_value(lisp_value_t* value) {
     // return lisp_eval_result_new(evaluated);
 }
 
+//// end evaluate non-destructive implementation
+
+//// evaluate destructive imlementation
+
 lisp_value_t * negate_lisp_value_destructive(lisp_value_t * value) {
     if (value->value_type == VAL_NUMBER) {
         value->value_number = -value->value_number;
@@ -688,3 +694,5 @@ lisp_eval_result_t* evaluate_root_lisp_value_destructive(lisp_value_t* value) {
     lisp_value_t* evaluated = evaluate_lisp_value_destructive(value);
     return lisp_eval_result_from_lisp_value(evaluated);
 }
+
+//// end evaluate destructive imlementation
