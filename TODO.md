@@ -20,3 +20,5 @@
   * move the function eval in interpreter.c
   * the main method would glue together mpc and eval by translating mpc ast to the ast represented by the custom structs
   * note: this is kind-of done by introducing s-expressions and distinguishing between parsing lisp_value_t and evaluating lisp_value_t
+* [] - Use perf profiler with IDE(such as CLion) or valgrind and try to find memory leaks if there are any
+  * try introducing memory leak(such as not deleting lisp_value_t* before builtin_op returns the evaluated value implemented for chapter 9, see the commit that mentions chapter 9)
