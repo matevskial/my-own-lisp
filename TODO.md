@@ -24,3 +24,7 @@
   * try introducing memory leak
     * such as not deleting lisp_value_t* before builtin_op returns the evaluated value implemented for chapter 9, see the commit that mentions chapter 9
     * not freing lisp_eval_result itself in lisp_eval_result_delete
+* [] - Compare implementations of non-destructive and destructive evaluate_lisp_value(implemented for chapter 9)
+  * non destructive evaluates the operation after the next expression is evaluated
+  * the destructive implementation evaluates all expressions and then executes the operation
+  * see if the way non-desturcitve evaluate is implemented can be used in the destructive evaluate operation
