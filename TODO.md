@@ -28,3 +28,5 @@
   * non destructive evaluates the operation after the next expression is evaluated
   * the destructive implementation evaluates all expressions and then executes the operation
   * see if the way non-desturcitve evaluate is implemented can be used in the destructive evaluate operation
+* [] - Consider moving inc(.h) files in the same list as source files
+  * check https://github.com/Backseating-Committee-2k/vhdl/blob/main/display/src/meson.build
