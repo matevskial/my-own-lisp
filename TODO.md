@@ -30,3 +30,13 @@
   * see if the way non-desturcitve evaluate is implemented can be used in the destructive evaluate operation
 * [] - Consider moving inc(.h) files in the same list as source files
   * check https://github.com/Backseating-Committee-2k/vhdl/blob/main/display/src/meson.build
+* [] - Implement q-expressions(chapter 10). I am first reading the chapter, trying to understand the concepts, 
+writing some notes, then write code to implement.
+  * see if I can use macros to cleanup code implementation 
+  * a QEXPR is lisp_value_t* that contains one exactly child of type QEXPR
+  * list, head, tail, join, eval take a q-expression, join takes one or more q-expressions
+  * head takes the first element(child) of the q expression and deletes the rest
+  * tail deletes the first element(child) of q expression and returns the q-expression that contains all the childs except the first
+  * example: eval (tail {tail tail {5 6 7}})
+    * eval must operate on a q-expression so argument to eval must evaluate to a q-expression
+  * after implementing, compare with chapter and implement bonus points
