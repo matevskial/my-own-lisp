@@ -750,7 +750,7 @@ lisp_value_t* execute_binary_operation_destructive(char* operation, lisp_value_t
     return lisp_value_error_new(ERR_INVALID_OPERATOR);
 }
 
-/* Assumes value is sexpr of one operator and at least one operand */
+/* Assumes value is sexpr of one operator and at least one operand and all operands are previously evaluated */
 lisp_value_t* builtin_operation(lisp_value_t* value) {
     lisp_value_t* operation = lisp_value_pop_child(value, 0);
     if (operation == &null_lisp_value) {
@@ -771,7 +771,7 @@ lisp_value_t* builtin_operation(lisp_value_t* value) {
             return &null_lisp_value;
         }
         if (is_lisp_value_error(first_operand)) {
-            return first_operand;
+            break;
         }
         lisp_value_t* next_value = execute_binary_operation_destructive(operation->value_symbol, first_operand, lisp_value_pop_child(value, 0));
         first_operand = next_value;
