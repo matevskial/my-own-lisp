@@ -27,7 +27,8 @@ static char *my_own_lisp_language =
     "                                                                                                \
         number            : /-?[0-9]+/ ;                                                             \
         decimal           : /-?[0-9]*\\.[0-9]+/ ;                                                    \
-        symbol            : '+' | '-' | '*' | '/' | '%' | '^' | \"min\" | \"max\" ;                  \
+        symbol            : '+' | '-' | '*' | '/' | '%' | '^' | \"min\" | \"max\" | \"list\"         \
+                          | \"head\" | \"tail\" | \"join\" | \"eval\" ;                              \
         sexpr             : '(' <expr>* ')' ;                                                        \
         qexpr             : '{' <expr>* '}' ;                                                        \
         expr              : <symbol> | <decimal> | <number> | <sexpr> | <qexpr> ;                    \

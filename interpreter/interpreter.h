@@ -67,3 +67,4 @@ lisp_value_t* negate_lisp_value(lisp_value_t* value);
 
 lisp_eval_result_t* evaluate_root_lisp_value(lisp_value_t* value);
 lisp_eval_result_t* evaluate_root_lisp_value_destructive(lisp_value_t* value);
+lisp_value_t* evaluate_lisp_value_destructive(lisp_value_t* value);

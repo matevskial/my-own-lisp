@@ -750,6 +750,100 @@ lisp_value_t* execute_binary_operation_destructive(char* operation, lisp_value_t
     return lisp_value_error_new(ERR_INVALID_OPERATOR);
 }
 
+lisp_value_t * builtin_head(lisp_value_t * arguments) {
+    if (arguments->count != 1) {
+        lisp_value_delete(arguments);
+        return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
+    }
+
+    lisp_value_t* qexpr = lisp_value_pop_child(arguments, 0);
+
+    if (qexpr->value_type != VAL_QEXPR) {
+        lisp_value_delete(arguments);
+        return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
+    }
+
+    lisp_value_t* head = NULL;
+    if (qexpr->count < 1) {
+        head = lisp_value_qexpr_new();
+    } else {
+        head = lisp_value_pop_child(qexpr, 0);
+    }
+
+    lisp_value_delete(arguments);
+    lisp_value_delete(qexpr);
+    return head;
+}
+
+lisp_value_t * builtin_tail(lisp_value_t * arguments) {
+    if (arguments->count != 1) {
+        lisp_value_delete(arguments);
+        return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
+    }
+
+    lisp_value_t* qexpr = lisp_value_pop_child(arguments, 0);
+
+    if (qexpr->value_type != VAL_QEXPR) {
+        lisp_value_delete(arguments);
+        return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
+    }
+
+    if (qexpr->count < 1) {
+        lisp_value_delete(arguments);
+        return qexpr;
+    }
+
+    lisp_value_t* head = lisp_value_pop_child(qexpr, 0);
+    lisp_value_delete(head);
+    lisp_value_delete(arguments);
+    return qexpr;
+}
+
+lisp_value_t* builtin_join(lisp_value_t* arguments) {
+    for (int i = 0; i < arguments->count; i++) {
+        if (arguments->values[i]->value_type != VAL_QEXPR) {
+            lisp_value_delete(arguments);
+            return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
+        }
+    }
+
+    lisp_value_t* result = lisp_value_pop_child(arguments, 0);
+    while (arguments->count > 0) {
+        lisp_value_t* current_qexpr = lisp_value_pop_child(arguments, 0);
+        while (current_qexpr->count > 0) {
+            bool ok = append_lisp_value(result, lisp_value_pop_child(current_qexpr, 0));
+            if (!ok) {
+                lisp_value_delete(result);
+                lisp_value_delete(arguments);
+                return &null_lisp_value;
+            }
+        }
+        lisp_value_delete(current_qexpr);
+    }
+
+    lisp_value_delete(arguments);
+    return result;
+}
+
+lisp_value_t* builtin_eval(lisp_value_t* arguments) {
+    if (arguments->count != 1) {
+        lisp_value_delete(arguments);
+        return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
+    }
+
+    lisp_value_t* qexpr = lisp_value_pop_child(arguments, 0);
+
+    if (qexpr->value_type != VAL_QEXPR) {
+        lisp_value_delete(arguments);
+        return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
+    }
+
+    qexpr->value_type = VAL_SEXPR;
+    lisp_value_t* result = evaluate_lisp_value_destructive(qexpr);
+    lisp_value_delete(arguments);
+    return result;
+}
+
 /* Assumes value is sexpr of one operator and at least one operand and all operands are previously evaluated */
 lisp_value_t* builtin_operation(lisp_value_t* value) {
     lisp_value_t* operation = lisp_value_pop_child(value, 0);
@@ -761,6 +855,36 @@ lisp_value_t* builtin_operation(lisp_value_t* value) {
         lisp_value_delete(operation);
         lisp_value_delete(value);
         return lisp_value_error_new(ERR_INVALID_OPERATOR);
+    }
+
+    if (strcmp(operation->value_symbol, "list") == 0) {
+        value->value_type = VAL_QEXPR;
+        lisp_value_delete(operation);
+        return value;
+    }
+
+    if (strcmp(operation->value_symbol, "head") == 0) {
+        lisp_value_t* result = builtin_head(value);
+        lisp_value_delete(operation);
+        return result;
+    }
+
+    if (strcmp(operation->value_symbol, "tail") == 0) {
+        lisp_value_t* result = builtin_tail(value);
+        lisp_value_delete(operation);
+        return result;
+    }
+
+    if (strcmp(operation->value_symbol, "join") == 0) {
+        lisp_value_t* result = builtin_join(value);
+        lisp_value_delete(operation);
+        return result;
+    }
+
+    if (strcmp(operation->value_symbol, "eval") == 0) {
+        lisp_value_t* result = builtin_eval(value);
+        lisp_value_delete(operation);
+        return result;
     }
 
     lisp_value_t* first_operand = execute_unary_operation_destructive(operation->value_symbol, lisp_value_pop_child(value, 0));
