@@ -24,15 +24,15 @@ static char *chapter_6_bonus_mark_language =
     ";
 
 static char *my_own_lisp_language =
-    "                                                                                                \
-        number            : /-?[0-9]+/ ;                                                             \
-        decimal           : /-?[0-9]*\\.[0-9]+/ ;                                                    \
-        symbol            : '+' | '-' | '*' | '/' | '%' | '^' | \"min\" | \"max\" | \"list\"         \
-                          | \"head\" | \"tail\" | \"join\" | \"eval\" ;                              \
-        sexpr             : '(' <expr>* ')' ;                                                        \
-        qexpr             : '{' <expr>* '}' ;                                                        \
-        expr              : <symbol> | <decimal> | <number> | <sexpr> | <qexpr> ;                    \
-        my_own_lisp       : /^/ <expr>* /$/ ;                                                        \
+    "                                                                                                         \
+        number            : /-?[0-9]+/ ;                                                                      \
+        decimal           : /-?[0-9]*\\.[0-9]+/ ;                                                             \
+        symbol            : '+' | '-' | '*' | '/' | '%' | '^' | \"min\" | \"max\" | \"list\"                  \
+                          | \"head\" | \"tail\" | \"join\" | \"eval\" | \"cons\" | \"len\" | \"init\" ;       \
+        sexpr             : '(' <expr>* ')' ;                                                                 \
+        qexpr             : '{' <expr>* '}' ;                                                                 \
+        expr              : <symbol> | <decimal> | <number> | <sexpr> | <qexpr> ;                             \
+        my_own_lisp       : /^/ <expr>* /$/ ;                                                                 \
     ";
 
 bool has_tag(mpc_ast_t * ast, char * tag) {

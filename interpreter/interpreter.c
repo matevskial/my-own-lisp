@@ -128,7 +128,8 @@ lisp_value_t* get_null_lisp_value() {
 }
 
 bool should_contain_children(lisp_value_t* value) {
-    return value->value_type == VAL_ROOT || value->value_type == VAL_SEXPR || value->value_type == VAL_QEXPR;
+    return value != &null_lisp_value
+    && (value->value_type == VAL_ROOT || value->value_type == VAL_SEXPR || value->value_type == VAL_QEXPR);
 }
 
 bool append_lisp_value(lisp_value_t* value, lisp_value_t* child_to_append) {
@@ -137,10 +138,10 @@ bool append_lisp_value(lisp_value_t* value, lisp_value_t* child_to_append) {
             value->values = malloc(sizeof(lisp_value_t) * 10);
         } else if (value->count % 10 == 0) {
             lisp_value_t** new_values = realloc(value->values, sizeof(lisp_value_t) * (value->count + 10));
-            if (new_values == NULL) {
-                return false;
-            }
             value->values = new_values;
+        }
+        if (value->values == NULL) {
+            return false;
         }
         value->values[value->count] = child_to_append;
         value->count++;
@@ -844,6 +845,80 @@ lisp_value_t* builtin_eval(lisp_value_t* arguments) {
     return result;
 }
 
+lisp_value_t* builtin_cons(lisp_value_t* arguments) {
+    if (arguments->count != 2) {
+        lisp_value_delete(arguments);
+        return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
+    }
+
+    lisp_value_t* value_to_cons = lisp_value_pop_child(arguments, 0);
+    lisp_value_t* existing_qexpr = lisp_value_pop_child(arguments, 0);
+
+    lisp_value_t* result_qexpr = lisp_value_qexpr_new();
+    bool ok = append_lisp_value(result_qexpr, value_to_cons);
+    if (!ok) {
+        lisp_value_delete(result_qexpr);
+        lisp_value_delete(existing_qexpr);
+        lisp_value_delete(value_to_cons);
+        lisp_value_delete(arguments);
+        return &null_lisp_value;
+    }
+
+    while (existing_qexpr->count > 0) {
+        ok = append_lisp_value(result_qexpr, lisp_value_pop_child(existing_qexpr, 0));
+        if (!ok) {
+            lisp_value_delete(result_qexpr);
+            lisp_value_delete(existing_qexpr);
+            lisp_value_delete(value_to_cons);
+            lisp_value_delete(arguments);
+            return &null_lisp_value;
+        }
+    }
+
+    lisp_value_delete(existing_qexpr);
+    lisp_value_delete(arguments);
+    return result_qexpr;
+}
+
+lisp_value_t* builtin_len(lisp_value_t* arguments) {
+    if (arguments->count != 1) {
+        lisp_value_delete(arguments);
+        return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
+    }
+
+    lisp_value_t* qexpr = lisp_value_pop_child(arguments, 0);
+
+    if (qexpr->value_type != VAL_QEXPR) {
+        lisp_value_delete(arguments);
+        return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
+    }
+
+    lisp_value_t* result = lisp_value_number_new(qexpr->count);
+    lisp_value_delete(arguments);
+    return result;
+}
+
+lisp_value_t* builtin_init(lisp_value_t* arguments) {
+    if (arguments->count != 1) {
+        lisp_value_delete(arguments);
+        return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
+    }
+
+    lisp_value_t* qexpr = lisp_value_pop_child(arguments, 0);
+
+    if (qexpr->value_type != VAL_QEXPR) {
+        lisp_value_delete(arguments);
+        return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
+    }
+
+    if (qexpr->count < 1) {
+        return qexpr;
+    }
+    lisp_value_t* last_child = lisp_value_pop_child(qexpr, qexpr->count - 1);
+    lisp_value_delete(last_child);
+    return qexpr;
+}
+
 /* Assumes value is sexpr of one operator and at least one operand and all operands are previously evaluated */
 lisp_value_t* builtin_operation(lisp_value_t* value) {
     lisp_value_t* operation = lisp_value_pop_child(value, 0);
@@ -883,6 +958,24 @@ lisp_value_t* builtin_operation(lisp_value_t* value) {
 
     if (strcmp(operation->value_symbol, "eval") == 0) {
         lisp_value_t* result = builtin_eval(value);
+        lisp_value_delete(operation);
+        return result;
+    }
+
+    if (strcmp(operation->value_symbol, "cons") == 0) {
+        lisp_value_t* result = builtin_cons(value);
+        lisp_value_delete(operation);
+        return result;
+    }
+
+    if (strcmp(operation->value_symbol, "len") == 0) {
+        lisp_value_t* result = builtin_len(value);
+        lisp_value_delete(operation);
+        return result;
+    }
+
+    if (strcmp(operation->value_symbol, "init") == 0) {
+        lisp_value_t* result = builtin_init(value);
         lisp_value_delete(operation);
         return result;
     }
