@@ -583,33 +583,125 @@ lisp_value_t* execute_unary_operation_destructive(char* operation, lisp_value_t*
     return operand;
 }
 
-lisp_value_t* add_lisp_values_destructive(lisp_value_t* value1, lisp_value_t* value2) {
-    if (value1->value_type == VAL_NUMBER && value2->value_type == VAL_NUMBER) {
-        lisp_value_t* result = lisp_value_number_new(value1->value_number + value2->value_number);
-        lisp_value_delete(value1);
-        lisp_value_delete(value2);
-        return result;
+lisp_value_t* arithmetic_op_number(char operation, long value1, long value2) {
+    if (operation == '+') {
+        return lisp_value_number_new(value1 + value2);
     }
-    if (value1->value_type == VAL_DECIMAL && value2->value_type == VAL_DECIMAL) {
-        lisp_value_t* result = lisp_value_decimal_new(value1->value_decimal + value2->value_decimal);
-        lisp_value_delete(value1);
-        lisp_value_delete(value2);
-        return result;
+    if (operation == '-') {
+        return lisp_value_number_new(value1 - value2);
     }
-    if (value1->value_type == VAL_NUMBER && value2->value_type == VAL_DECIMAL) {
-        lisp_value_t* result = lisp_value_decimal_new((double) value1->value_number + value2->value_decimal);
-        lisp_value_delete(value1);
-        lisp_value_delete(value2);
-        return result;
+    if (operation == '*') {
+        return lisp_value_number_new(value1 * value2);
     }
-    if (value1->value_type == VAL_DECIMAL && value2->value_type == VAL_NUMBER) {
-        lisp_value_t* result = lisp_value_decimal_new(value1->value_decimal + (double) value2->value_number);
-        lisp_value_delete(value1);
-        lisp_value_delete(value2);
-        return result;
+    if (operation == '/') {
+        if (value2 == 0) {
+            return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
+        }
+        return lisp_value_number_new(value1 / value2);
+    }
+    if (operation == '%') {
+        if (value2 == 0) {
+            return lisp_value_error_new(ERR_DIV_ZERO);
+        }
+        return lisp_value_number_new(value1 % value2);
+    }
+    if (operation == '^') {
+        return lisp_value_number_new((long) pow((double) value1, (double) value2));
+    }
+    return lisp_value_error_new(ERR_INVALID_OPERATOR);
+}
+
+lisp_value_t* arithmetic_op_decimal(char operation, double value1, double value2) {
+    if (operation == '+') {
+        return lisp_value_decimal_new(value1 + value2);
+    }
+    if (operation == '-') {
+        return lisp_value_decimal_new(value1 - value2);
+    }
+    if (operation == '*') {
+        return lisp_value_decimal_new(value1 * value2);
+    }
+    if (operation == '/') {
+        if (value2 == 0) {
+            return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
+        }
+        return lisp_value_decimal_new(value1 / value2);
+    }
+    if (operation == '%') {
+        return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
+    }
+    if (operation == '^') {
+        return lisp_value_decimal_new(pow(value1, value2));
+    }
+    return lisp_value_error_new(ERR_INVALID_OPERATOR);
+}
+
+lisp_value_t* builtin_arithmetic_op_lisp_values_destructive(char operation, lisp_value_t* first_operand, lisp_value_t* second_operand) {
+    lisp_value_t* result = NULL;
+
+    if (first_operand->value_type == VAL_NUMBER && second_operand->value_type == VAL_NUMBER) {
+        result = arithmetic_op_number(operation, first_operand->value_number, second_operand->value_number);
+    } else if (first_operand->value_type == VAL_DECIMAL && second_operand->value_type == VAL_DECIMAL) {
+        result = arithmetic_op_decimal(operation, first_operand->value_decimal, second_operand->value_decimal);
+    } else if (first_operand->value_type == VAL_NUMBER && second_operand->value_type == VAL_DECIMAL) {
+        result = arithmetic_op_decimal(operation, (double) first_operand->value_number, second_operand->value_decimal);
+    } else if (first_operand->value_type == VAL_DECIMAL && second_operand->value_type == VAL_NUMBER) {
+        result = arithmetic_op_decimal(operation, first_operand->value_decimal, (double) second_operand->value_number);
     }
 
-    lisp_value_delete(value1);
+    lisp_value_delete(first_operand);
+    lisp_value_delete(second_operand);
+    if (result != NULL) {
+        return result;
+    }
+    return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
+}
+
+lisp_value_t * builtin_min(lisp_value_t * first_operand, lisp_value_t * second_operand) {
+    lisp_value_t* result = NULL;
+
+    if (first_operand->value_type == VAL_NUMBER && second_operand->value_type == VAL_NUMBER) {
+        result = lisp_value_number_new(
+            first_operand->value_number < second_operand->value_number
+            ? first_operand->value_number
+            : second_operand->value_number);
+    } else if (first_operand->value_type == VAL_DECIMAL && second_operand->value_type == VAL_DECIMAL) {
+        result = lisp_value_decimal_new(
+            first_operand->value_decimal < second_operand->value_decimal
+            ? first_operand->value_decimal
+            : second_operand->value_decimal);
+    }
+
+
+    lisp_value_delete(first_operand);
+    lisp_value_delete(second_operand);
+    if (result != NULL) {
+        return result;
+    }
+    return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
+}
+
+lisp_value_t * builtin_max(lisp_value_t * first_operand, lisp_value_t * second_operand) {
+    lisp_value_t* result = NULL;
+
+    if (first_operand->value_type == VAL_NUMBER && second_operand->value_type == VAL_NUMBER) {
+        result = lisp_value_number_new(
+            first_operand->value_number > second_operand->value_number
+            ? first_operand->value_number
+            : second_operand->value_number);
+    } else if (first_operand->value_type == VAL_DECIMAL && second_operand->value_type == VAL_DECIMAL) {
+        result = lisp_value_decimal_new(
+            first_operand->value_decimal > second_operand->value_decimal
+            ? first_operand->value_decimal
+            : second_operand->value_decimal);
+    }
+
+
+    lisp_value_delete(first_operand);
+    lisp_value_delete(second_operand);
+    if (result != NULL) {
+        return result;
+    }
     return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
 }
 
@@ -620,8 +712,14 @@ lisp_value_t* execute_binary_operation_destructive(char* operation, lisp_value_t
         return &null_lisp_value;
     }
 
-    if (strcmp(operation, "+") == 0) {
-        return add_lisp_values_destructive(first_operand, second_operand);
+    if (strpbrk(operation, "+-*/^%") != NULL) {
+        return builtin_arithmetic_op_lisp_values_destructive(operation[0], first_operand, second_operand);
+    }
+    if (strcmp(operation, "min") == 0) {
+        return builtin_min(first_operand, second_operand);
+    }
+    if (strcmp(operation, "max") == 0) {
+        return builtin_max(first_operand, second_operand);
     }
 
     lisp_value_delete(first_operand);
