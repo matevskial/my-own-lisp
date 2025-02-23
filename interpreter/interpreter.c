@@ -662,19 +662,6 @@ lisp_value_t* builtin_operation(lisp_value_t* value) {
 }
 
 lisp_value_t* evaluate_lisp_value_destructive(lisp_value_t* value) {
-    if (value == &null_lisp_value) {
-        return value;
-    }
-    if (value->value_type == VAL_NUMBER) {
-        return value;
-    }
-    if (value->value_type == VAL_DECIMAL) {
-        return value;
-    }
-    if (value->value_type == VAL_SYMBOL) {
-        return value;
-    }
-
     if (value->value_type == VAL_SEXPR || value->value_type == VAL_ROOT) {
         for (int i = 0; i < value->count; i++) {
             lisp_value_set_child(value, i, evaluate_lisp_value_destructive(value->values[i]));
@@ -701,6 +688,8 @@ lisp_value_t* evaluate_lisp_value_destructive(lisp_value_t* value) {
 
         return builtin_operation(value);
     }
+
+    return value;
 }
 
 /* Evaluates lisp_value_t* in a destructive way,
