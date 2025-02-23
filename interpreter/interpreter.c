@@ -555,7 +555,7 @@ lisp_eval_result_t* evaluate_root_lisp_value(lisp_value_t* value) {
 
 //// end evaluate non-destructive implementation
 
-//// evaluate destructive imlementation
+//// evaluate destructive implementation
 
 lisp_value_t * negate_lisp_value_destructive(lisp_value_t * value) {
     if (value->value_type == VAL_NUMBER) {
@@ -720,4 +720,4 @@ lisp_eval_result_t* evaluate_root_lisp_value_destructive(lisp_value_t* value) {
     return lisp_eval_result_new(evaluated);
 }
 
-//// end evaluate destructive imlementation
+//// end evaluate destructive implementation
