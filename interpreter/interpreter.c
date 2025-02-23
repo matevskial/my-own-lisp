@@ -751,7 +751,7 @@ lisp_value_t* execute_binary_operation_destructive(char* operation, lisp_value_t
     return lisp_value_error_new(ERR_INVALID_OPERATOR);
 }
 
-lisp_value_t * builtin_head(lisp_value_t * arguments) {
+lisp_value_t* builtin_head(lisp_value_t* arguments) {
     if (arguments->count != 1) {
         lisp_value_delete(arguments);
         return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
@@ -764,11 +764,13 @@ lisp_value_t * builtin_head(lisp_value_t * arguments) {
         return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
     }
 
-    lisp_value_t* head = NULL;
-    if (qexpr->count < 1) {
-        head = lisp_value_qexpr_new();
-    } else {
-        head = lisp_value_pop_child(qexpr, 0);
+    lisp_value_t* head = lisp_value_qexpr_new();
+    if (qexpr->count > 0) {
+        bool ok = append_lisp_value(head, lisp_value_pop_child(qexpr, 0));
+        if (!ok) {
+            lisp_value_delete(head);
+            head = &null_lisp_value;
+        }
     }
 
     lisp_value_delete(arguments);
@@ -776,7 +778,7 @@ lisp_value_t * builtin_head(lisp_value_t * arguments) {
     return head;
 }
 
-lisp_value_t * builtin_tail(lisp_value_t * arguments) {
+lisp_value_t* builtin_tail(lisp_value_t* arguments) {
     if (arguments->count != 1) {
         lisp_value_delete(arguments);
         return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
