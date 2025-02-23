@@ -14,7 +14,8 @@ typedef enum {
     VAL_DECIMAL,
     VAL_SYMBOL,
     VAL_SEXPR,
-    VAL_ROOT
+    VAL_ROOT,
+    VAL_QEXPR
 } lisp_value_type_t;
 
 typedef struct lisp_value_t {
@@ -37,16 +38,16 @@ lisp_value_t* lisp_value_decimal_new(double value);
 lisp_value_t* lisp_value_symbol_new(char* value);
 lisp_value_t* lisp_value_sexpr_new();
 lisp_value_t* lisp_value_root_new();
+lisp_value_t* lisp_value_qexpr_new();
 lisp_value_t* lisp_value_error_new(lisp_error_type_t error);
 lisp_value_t* get_null_lisp_value();
-lisp_value_t* lisp_value_set_child(lisp_value_t* value, int index, lisp_value_t* child);
+bool append_lisp_value(lisp_value_t* value, lisp_value_t* child_to_append);
+void lisp_value_set_child(lisp_value_t* value, int index, lisp_value_t* child);
 lisp_value_t* lisp_value_pop_child(lisp_value_t * value, int index);
 void lisp_value_delete(lisp_value_t *lisp_value);
 
 lisp_eval_result_t* lisp_eval_result_new(lisp_value_t* value);
 void lisp_eval_result_delete(lisp_eval_result_t* lisp_eval_result);
-
-bool append_lisp_value(lisp_value_t* sexpr, lisp_value_t* value);
 
 bool is_lisp_value_error(lisp_value_t* value);
 bool is_lisp_value_null(lisp_value_t* value);

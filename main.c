@@ -29,7 +29,8 @@ static char *my_own_lisp_language =
         decimal           : /-?[0-9]*\\.[0-9]+/ ;                                                    \
         symbol            : '+' | '-' | '*' | '/' | '%' | '^' | \"min\" | \"max\" ;                  \
         sexpr             : '(' <expr>* ')' ;                                                        \
-        expr              : <symbol> | <decimal> | <number> | <sexpr> ;                              \
+        qexpr             : '{' <expr>* '}' ;                                                        \
+        expr              : <symbol> | <decimal> | <number> | <sexpr> | <qexpr> ;                    \
         my_own_lisp       : /^/ <expr>* /$/ ;                                                        \
     ";
 
@@ -73,6 +74,8 @@ lisp_value_t* parse_lisp_value(mpc_ast_t* ast) {
         lisp_value = lisp_value_root_new();
     } else if (has_tag(ast, "sexpr")) {
         lisp_value = lisp_value_sexpr_new();
+    } else if (has_tag(ast, "qexpr")) {
+        lisp_value = lisp_value_qexpr_new();
     }
 
     if (is_lisp_value_null(lisp_value)) {
@@ -104,12 +107,13 @@ int main(int argc, char** argv) {
     mpc_parser_t* symbol = mpc_new("symbol");
     mpc_parser_t* sexpr = mpc_new("sexpr");
     mpc_parser_t* expr = mpc_new("expr");
+    mpc_parser_t* qexpr = mpc_new("qexpr");
     mpc_parser_t* my_own_lisp = mpc_new("my_own_lisp");
 
     mpca_lang(
         MPCA_LANG_DEFAULT,
         my_own_lisp_language,
-       number, decimal, symbol, sexpr, expr, my_own_lisp
+       number, decimal, symbol, sexpr, expr, qexpr, my_own_lisp
     );
 
     puts("my-own-lisp version 0.0.1");
@@ -121,6 +125,10 @@ int main(int argc, char** argv) {
         if (size_read < 1) {
             puts("input error");
             exit(1);
+        }
+
+        if (size_read == 1) {
+            continue;
         }
 
         mpc_result_t my_own_lisp_parse_result;
@@ -142,6 +150,6 @@ int main(int argc, char** argv) {
         }
     }
 
-    mpc_cleanup(7, number, decimal, symbol, sexpr, expr, my_own_lisp);
+    mpc_cleanup(7, number, decimal, symbol, sexpr, expr, qexpr, my_own_lisp);
     return 0;
 }

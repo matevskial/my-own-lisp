@@ -88,6 +88,15 @@ lisp_value_t * lisp_value_root_new() {
     return lisp_value;
 }
 
+lisp_value_t * lisp_value_qexpr_new() {
+    lisp_value_t* lisp_value = lisp_value_new();
+    if (lisp_value == NULL) {
+        return &null_lisp_value;
+    }
+    lisp_value->value_type = VAL_QEXPR;
+    return lisp_value;
+}
+
 void lisp_value_delete(lisp_value_t* lisp_value) {
     if (lisp_value == &null_lisp_value) {
         return;
@@ -103,23 +112,7 @@ void lisp_value_delete(lisp_value_t* lisp_value) {
     free(lisp_value);
 }
 
-bool append_lisp_value(lisp_value_t* sexpr, lisp_value_t* value) {
-    if (sexpr->value_type == VAL_SEXPR || sexpr->value_type == VAL_ROOT) {
-        if (sexpr->values == NULL) {
-            sexpr->values = malloc(sizeof(lisp_value_t) * 10);
-        } else if (sexpr->count % 10 == 0) {
-            lisp_value_t** new_values = realloc(sexpr->values, sizeof(lisp_value_t) * (sexpr->count + 10));
-            if (new_values == NULL) {
-                return false;
-            }
-            sexpr->values = new_values;
-        }
-        sexpr->values[sexpr->count] = value;
-        sexpr->count++;
-        return true;
-    }
-    return false;
-}
+
 
 lisp_value_t* lisp_value_error_new(lisp_error_type_t error) {
     lisp_value_t* lisp_error = lisp_value_new();
@@ -134,12 +127,40 @@ lisp_value_t* get_null_lisp_value() {
     return &null_lisp_value;
 }
 
-lisp_value_t * lisp_value_set_child(lisp_value_t *value, int index, lisp_value_t *child) {
-    value->values[index] = child;
+bool should_contain_children(lisp_value_t* value) {
+    return value->value_type == VAL_ROOT || value->value_type == VAL_SEXPR || value->value_type == VAL_QEXPR;
+}
+
+bool append_lisp_value(lisp_value_t* value, lisp_value_t* child_to_append) {
+    if (should_contain_children(value)) {
+        if (value->values == NULL) {
+            value->values = malloc(sizeof(lisp_value_t) * 10);
+        } else if (value->count % 10 == 0) {
+            lisp_value_t** new_values = realloc(value->values, sizeof(lisp_value_t) * (value->count + 10));
+            if (new_values == NULL) {
+                return false;
+            }
+            value->values = new_values;
+        }
+        value->values[value->count] = child_to_append;
+        value->count++;
+        return true;
+    }
+    return false;
+}
+
+void lisp_value_set_child(lisp_value_t *value, int index, lisp_value_t *child) {
+    if (should_contain_children(value)) {
+        value->values[index] = child;
+    }
 }
 
 lisp_value_t* lisp_value_pop_child(lisp_value_t *value, int index) {
-    /* Find the item at "iindex" */
+    if (!should_contain_children(value)) {
+        return &null_lisp_value;
+    }
+
+    /* Find the item at "index" */
     lisp_value_t* popped = value->values[index];
 
     /* Shift memory after the item at "index" over the top */
@@ -190,8 +211,8 @@ char *get_lisp_value_error_message(lisp_value_t* lisp_value) {
     }
 }
 
-void print_lisp_expr(lisp_value_t* lisp_value, char open, char close) {
-    if (lisp_value->value_type == VAL_SEXPR || lisp_value->value_type == VAL_ROOT) {
+void print_lisp_value_with_children(lisp_value_t* lisp_value, char open, char close) {
+    if (should_contain_children(lisp_value)) {
         putchar(open);
         for (int i = 0; i < lisp_value->count; i++) {
             print_lisp_value(lisp_value->values[i]);
@@ -219,7 +240,9 @@ void print_lisp_value(lisp_value_t* lisp_value) {
         } else if (lisp_value->value_type == VAL_SYMBOL) {
             printf("symbol: %s", lisp_value->value_symbol);
         } else if (lisp_value->value_type == VAL_SEXPR || lisp_value->value_type == VAL_ROOT) {
-            print_lisp_expr(lisp_value, '(', ')');
+            print_lisp_value_with_children(lisp_value, '(', ')');
+        } else if (lisp_value->value_type == VAL_QEXPR) {
+            print_lisp_value_with_children(lisp_value, '{', '}');
         }
     }
 }
