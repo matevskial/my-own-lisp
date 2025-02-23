@@ -856,6 +856,13 @@ lisp_value_t* builtin_cons(lisp_value_t* arguments) {
     lisp_value_t* value_to_cons = lisp_value_pop_child(arguments, 0);
     lisp_value_t* existing_qexpr = lisp_value_pop_child(arguments, 0);
 
+    if (existing_qexpr->value_type != VAL_QEXPR) {
+        lisp_value_delete(existing_qexpr);
+        lisp_value_delete(value_to_cons);
+        lisp_value_delete(arguments);
+        return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
+    }
+
     lisp_value_t* result_qexpr = lisp_value_qexpr_new();
     bool ok = append_lisp_value(result_qexpr, value_to_cons);
     if (!ok) {
