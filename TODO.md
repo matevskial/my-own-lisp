@@ -13,8 +13,6 @@
   * see if the way non-desturcitve evaluate is implemented can be used in the destructive evaluate operation
 * [] - Consider moving inc(.h) files in the same list as source files
   * check https://github.com/Backseating-Committee-2k/vhdl/blob/main/display/src/meson.build
-* [] - Consider replacing with macros duplicating code in beginning of builtin_len, builtin_cons, builtin_init 
-that check if they operate with valid arguments
 
 ## done
 
@@ -47,3 +45,5 @@ that check if they operate with valid arguments
   * example: eval (tail {tail tail {5 6 7}})
     * eval must operate on a q-expression so argument to eval must evaluate to a q-expression
   * after implementing, compare with chapter and implement bonus points
+* [v] - Consider replacing with macros duplicating code in beginning of builtin_len, builtin_cons, builtin_init
+  that check if they operate with valid arguments
