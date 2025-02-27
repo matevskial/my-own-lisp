@@ -13,6 +13,9 @@
   * see if the way non-desturcitve evaluate is implemented can be used in the destructive evaluate operation
 * [] - Consider moving inc(.h) files in the same list as source files
   * check https://github.com/Backseating-Committee-2k/vhdl/blob/main/display/src/meson.build
+* [] - Consider using github.com/tsoding/arena
+* [] - Use hashmap implementation for lisp_env* get, etc
+  * either own implementation or stb_ds
 
 ## done
 
