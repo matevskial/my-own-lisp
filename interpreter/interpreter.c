@@ -101,7 +101,7 @@ void lisp_value_delete(lisp_value_t* lisp_value) {
     if (lisp_value == &null_lisp_value) {
         return;
     }
-    if (lisp_value->value_type == VAL_SEXPR || lisp_value->value_type == VAL_ROOT) {
+    if (lisp_value->value_type == VAL_SEXPR || lisp_value->value_type == VAL_ROOT || lisp_value->value_type == VAL_QEXPR) {
         for (int i = 0; i < lisp_value->count; i++) {
             lisp_value_delete(lisp_value->values[i]);
         }
@@ -111,8 +111,6 @@ void lisp_value_delete(lisp_value_t* lisp_value) {
     }
     free(lisp_value);
 }
-
-
 
 lisp_value_t* lisp_value_error_new(lisp_error_type_t error) {
     lisp_value_t* lisp_error = lisp_value_new();
