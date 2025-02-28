@@ -66,6 +66,10 @@ lisp_value_t* lisp_value_symbol_new(char* value) {
     }
     lisp_value->value_type = VAL_SYMBOL;
     lisp_value->value_symbol = malloc(strlen(value) + 1);
+    if (lisp_value->value_symbol == NULL) {
+        lisp_value_delete(lisp_value);
+        return &null_lisp_value;
+    }
     strcpy(lisp_value->value_symbol, value);
     return lisp_value;
 }
@@ -183,7 +187,7 @@ bool append_lisp_value(lisp_value_t* value, lisp_value_t* child_to_append) {
     if (should_contain_children(value)) {
         if (value->values == NULL) {
             value->values = malloc(sizeof(lisp_value_t) * 10);
-        } else if (value->count % 10 == 0) {
+        } else if (value->count > 0 && value->count % 10 == 0) {
             lisp_value_t** new_values = realloc(value->values, sizeof(lisp_value_t) * (value->count + 10));
             value->values = new_values;
         }
@@ -219,6 +223,9 @@ lisp_value_t* lisp_value_pop_child(lisp_value_t *value, int index) {
 
     /* Decrease the count of items in the list */
     value->count--;
+    if (value->count < 0) {
+        value->count = 0;
+    }
 
     /* Reallocate the memory used, so the values points to a contiguous blocks of `count` lisp_value_t* items */
 
