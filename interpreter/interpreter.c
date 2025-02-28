@@ -887,11 +887,11 @@ lisp_value_t* builtin_join(lisp_value_t* arguments) {
     return result;
 }
 
-lisp_value_t* builtin_eval(lisp_value_t* arguments) {
+lisp_value_t* builtin_eval(lisp_environment_t* env, lisp_value_t* arguments) {
     ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments);
     lisp_value_t* qexpr = lisp_value_pop_child(arguments, 0);
     qexpr->value_type = VAL_SEXPR;
-    lisp_value_t* result = evaluate_lisp_value_destructive(qexpr);
+    lisp_value_t* result = evaluate_lisp_value_destructive(env, qexpr);
     lisp_value_delete(arguments);
     return result;
 }
@@ -958,7 +958,7 @@ lisp_value_t* builtin_init(lisp_value_t* arguments) {
 }
 
 /* Assumes value is sexpr of one operator and at least one operand and all operands are previously evaluated */
-lisp_value_t* builtin_operation(lisp_value_t* value) {
+lisp_value_t* builtin_operation(lisp_environment_t* env, lisp_value_t* value) {
     lisp_value_t* operation = lisp_value_pop_child(value, 0);
     if (operation == &null_lisp_value) {
         lisp_value_delete(value);
@@ -995,7 +995,7 @@ lisp_value_t* builtin_operation(lisp_value_t* value) {
     }
 
     if (strcmp(operation->value_symbol, "eval") == 0) {
-        lisp_value_t* result = builtin_eval(value);
+        lisp_value_t* result = builtin_eval(env, value);
         lisp_value_delete(operation);
         return result;
     }
@@ -1041,10 +1041,10 @@ lisp_value_t* builtin_operation(lisp_value_t* value) {
     return first_operand;
 }
 
-lisp_value_t* evaluate_lisp_value_destructive(lisp_value_t* value) {
+lisp_value_t* evaluate_lisp_value_destructive(lisp_environment_t *env, lisp_value_t* value) {
     if (value->value_type == VAL_SEXPR || value->value_type == VAL_ROOT) {
         for (int i = 0; i < value->count; i++) {
-            lisp_value_set_child(value, i, evaluate_lisp_value_destructive(value->values[i]));
+            lisp_value_set_child(value, i, evaluate_lisp_value_destructive(env, value->values[i]));
             if (is_lisp_value_error(value->values[i])) {
                 lisp_value_t* error_value = lisp_value_error_new(value->values[i]->error);
                 lisp_value_delete(value);
@@ -1066,7 +1066,7 @@ lisp_value_t* evaluate_lisp_value_destructive(lisp_value_t* value) {
             return evaluated_child;
         }
 
-        return builtin_operation(value);
+        return builtin_operation(env, value);
     }
 
     return value;
@@ -1078,14 +1078,14 @@ lisp_value_t* evaluate_lisp_value_destructive(lisp_value_t* value) {
  * Additional implementation notes:
  * The functions that return a new lisp_value_t* will have the responsibility of deleting the input lisp_value_t*
  */
-lisp_eval_result_t* evaluate_root_lisp_value_destructive(lisp_value_t* value) {
+lisp_eval_result_t* evaluate_root_lisp_value_destructive(lisp_environment_t* env, lisp_value_t* value) {
     if (value == &null_lisp_value || value->value_type != VAL_ROOT) {
         lisp_value_delete(value);
         return lisp_eval_result_error_new("invalid root lisp value");
     }
 
     /* this code is valid if we treat root as SEXPR */
-    lisp_value_t* evaluated = evaluate_lisp_value_destructive(value);
+    lisp_value_t* evaluated = evaluate_lisp_value_destructive(env, value);
     return lisp_eval_result_new(evaluated);
 }
 
@@ -1195,4 +1195,8 @@ lisp_value_t* lisp_environment_get(lisp_environment_t* env, lisp_value_t *symbol
     }
 
     return result;
+}
+
+bool is_lisp_environment_null(lisp_environment_t *env) {
+    return env == &null_lisp_environment;
 }

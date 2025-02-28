@@ -117,6 +117,12 @@ int main(int argc, char** argv) {
        number, decimal, symbol, sexpr, expr, qexpr, my_own_lisp
     );
 
+    lisp_environment_t* env = lisp_environment_new();
+    if (is_lisp_environment_null(env)) {
+        puts("Failed to initialize lisp evaluation environment. Probably out of memory.");
+        exit(1);
+    }
+
     puts("my-own-lisp version 0.0.1");
     puts("Press Ctrl-C to exit\n");
 
@@ -136,7 +142,7 @@ int main(int argc, char** argv) {
         if (mpc_parse("<stdin>", input_buff, my_own_lisp, &my_own_lisp_parse_result)) {
             lisp_value_t* lisp_value = parse_lisp_value(my_own_lisp_parse_result.output);
             // lisp_eval_result_t* eval_result = evaluate_root_lisp_value(lisp_value);
-            lisp_eval_result_t* eval_result_1 = evaluate_root_lisp_value_destructive(lisp_value);
+            lisp_eval_result_t* eval_result_1 = evaluate_root_lisp_value_destructive(env, lisp_value);
             // print_lisp_eval_result(eval_result);
             // putchar('\n');
             print_lisp_eval_result(eval_result_1);

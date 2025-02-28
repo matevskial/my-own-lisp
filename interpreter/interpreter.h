@@ -74,10 +74,11 @@ lisp_value_t* max_lisp_value(lisp_value_t* value1, lisp_value_t* value2);
 lisp_value_t* negate_lisp_value(lisp_value_t* value);
 
 lisp_eval_result_t* evaluate_root_lisp_value(lisp_value_t* value);
-lisp_eval_result_t* evaluate_root_lisp_value_destructive(lisp_value_t* value);
-lisp_value_t* evaluate_lisp_value_destructive(lisp_value_t* value);
+lisp_eval_result_t* evaluate_root_lisp_value_destructive(lisp_environment_t *env, lisp_value_t* value);
+lisp_value_t* evaluate_lisp_value_destructive(lisp_environment_t* env, lisp_value_t* value);
 
 lisp_environment_t* lisp_environment_new();
 void lisp_environment_delete(lisp_environment_t* env);
 void lisp_environment_set(lisp_environment_t* env, lisp_value_t* symbol, lisp_value_t* value);
 lisp_value_t* lisp_environment_get(lisp_environment_t* env, lisp_value_t* symbol);
+bool is_lisp_environment_null(lisp_environment_t* env);
