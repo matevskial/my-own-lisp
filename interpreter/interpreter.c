@@ -956,7 +956,10 @@ lisp_value_t* builtin_operation(lisp_value_t* value) {
         return result;
     }
 
-    lisp_value_t* first_operand = execute_unary_operation_destructive(operation->value_symbol, lisp_value_pop_child(value, 0));
+    lisp_value_t* first_operand = lisp_value_pop_child(value, 0);
+    if (value->count == 0) {
+        first_operand = execute_unary_operation_destructive(operation->value_symbol, first_operand);
+    }
     while (value->count > 0) {
         if (first_operand == &null_lisp_value) {
             lisp_value_delete(operation);
@@ -966,7 +969,8 @@ lisp_value_t* builtin_operation(lisp_value_t* value) {
         if (is_lisp_value_error(first_operand)) {
             break;
         }
-        lisp_value_t* next_value = execute_binary_operation_destructive(operation->value_symbol, first_operand, lisp_value_pop_child(value, 0));
+        lisp_value_t* second_operand = lisp_value_pop_child(value, 0);
+        lisp_value_t* next_value = execute_binary_operation_destructive(operation->value_symbol, first_operand, second_operand);
         first_operand = next_value;
     }
 

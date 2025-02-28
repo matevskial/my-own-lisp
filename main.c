@@ -31,7 +31,7 @@ static char *my_own_lisp_language =
                           | \"head\" | \"tail\" | \"join\" | \"eval\" | \"cons\" | \"len\" | \"init\" ;       \
         sexpr             : '(' <expr>* ')' ;                                                                 \
         qexpr             : '{' <expr>* '}' ;                                                                 \
-        expr              : <symbol> | <decimal> | <number> | <sexpr> | <qexpr> ;                             \
+        expr              : <decimal> | <number> | <symbol> | <sexpr> | <qexpr> ;                             \
         my_own_lisp       : /^/ <expr>* /$/ ;                                                                 \
     ";
 
