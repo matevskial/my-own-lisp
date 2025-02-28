@@ -189,6 +189,9 @@ bool append_lisp_value(lisp_value_t* value, lisp_value_t* child_to_append) {
             value->values = malloc(sizeof(lisp_value_t) * 10);
         } else if (value->count > 0 && value->count % 10 == 0) {
             lisp_value_t** new_values = realloc(value->values, sizeof(lisp_value_t) * (value->count + 10));
+            if (new_values == NULL) {
+                return false;
+            }
             value->values = new_values;
         }
         if (value->values == NULL) {
