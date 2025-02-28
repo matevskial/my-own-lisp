@@ -24,6 +24,11 @@ static lisp_value_t null_lisp_value = {
     .values = NULL
 };
 
+static lisp_environment_t null_lisp_environment = {
+    .symbols = NULL,
+    .values = NULL
+};
+
 lisp_value_t* lisp_value_new() {
     lisp_value_t* lisp_value = malloc(sizeof(lisp_value_t));
     if (lisp_value == NULL) {
@@ -1085,3 +1090,109 @@ lisp_eval_result_t* evaluate_root_lisp_value_destructive(lisp_value_t* value) {
 }
 
 //// end evaluate destructive implementation
+
+lisp_environment_t * lisp_environment_new() {
+    lisp_environment_t* env = malloc(sizeof(lisp_environment_t));
+    if (env == NULL) {
+        return &null_lisp_environment;
+    }
+
+    env->count = 10;
+    env->symbols = malloc(sizeof(char*) * env->count);
+    env->values = malloc(sizeof(lisp_value_t*) * env->count);
+    if (env->symbols == NULL || env->values == NULL) {
+        lisp_environment_delete(env);
+        return &null_lisp_environment;
+    }
+
+    return env;
+}
+
+void lisp_environment_delete(lisp_environment_t *env) {
+    if (env == &null_lisp_environment) {
+        return;
+    }
+
+    if (env->symbols != NULL) {
+        for (int i = 0; i < env->count; i++) {
+            free(env->symbols[i]);
+        }
+    }
+
+    if (env->values != NULL) {
+        for (int i = 0; i < env->count; i++) {
+            lisp_value_delete(env->values[i]);
+        }
+    }
+
+    free(env->symbols);
+    free(env->values);
+    free(env);
+}
+
+void lisp_environment_set(lisp_environment_t* env, lisp_value_t *symbol, lisp_value_t *value) {
+    if (env == &null_lisp_environment) {
+        return;
+    }
+    if (symbol == &null_lisp_value) {
+        return;
+    }
+
+    for (int i = 0; i < env->count; i++) {
+        if (strcmp(symbol->value_symbol, env->symbols[i]) == 0) {
+            lisp_value_delete(env->values[i]);
+            env->values[i] = lisp_value_copy(value);
+            return;
+        }
+    }
+
+    bool ok = true;
+    char** symbols_new = env->symbols;
+    lisp_value_t** values_new = env->values;
+    if (env->count > 0 && env->count % 10 == 0) {
+        if (ok) {
+            symbols_new = realloc(env->symbols, sizeof(char*) * env->count + 10);
+            if (symbols_new == NULL) {
+                ok = false;
+            }
+        }
+
+        if (ok) {
+            values_new = realloc(env->values, sizeof(lisp_value_t*) * env->count + 10);
+            if (values_new == NULL) {
+                ok = false;
+            }
+        }
+    }
+
+    if (ok) {
+        env->symbols = symbols_new;
+        env->values = values_new;
+
+        env->symbols[env->count] = malloc(strlen(symbol->value_symbol) + 1);
+        if (env->symbols[env->count] != NULL) {
+            strcpy(env->symbols[env->count], symbol->value_symbol);
+            env->values[env->count] = lisp_value_copy(value);
+            env->count++;
+        }
+    }
+}
+
+lisp_value_t* lisp_environment_get(lisp_environment_t* env, lisp_value_t *symbol) {
+    if (env == &null_lisp_environment) {
+        return &null_lisp_value;
+    }
+    if (symbol == &null_lisp_value) {
+        return &null_lisp_value;
+    }
+
+    lisp_value_t* result = &null_lisp_value;
+    for (int i = 0; i < env->count; i++) {
+        if (strcmp(symbol->value_symbol, env->symbols[i]) == 0) {
+            result = lisp_value_copy(env->values[i]);
+            break;
+        }
+    }
+
+    return result;
+}

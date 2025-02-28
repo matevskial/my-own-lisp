@@ -1,4 +1,5 @@
 #pragma once
+#include <stddef.h>
 
 typedef enum {
     NO_ERROR,
@@ -32,6 +33,12 @@ typedef struct lsp_eval_result_t {
     char* error;
     lisp_value_t* value;
 } lisp_eval_result_t;
+
+typedef struct lisp_environment_t {
+    size_t count;
+    char** symbols;
+    lisp_value_t** values;
+} lisp_environment_t;
 
 lisp_value_t* lisp_value_number_new(long value);
 lisp_value_t* lisp_value_decimal_new(double value);
@@ -69,3 +76,8 @@ lisp_value_t* negate_lisp_value(lisp_value_t* value);
 lisp_eval_result_t* evaluate_root_lisp_value(lisp_value_t* value);
 lisp_eval_result_t* evaluate_root_lisp_value_destructive(lisp_value_t* value);
 lisp_value_t* evaluate_lisp_value_destructive(lisp_value_t* value);
+
+lisp_environment_t* lisp_environment_new();
+void lisp_environment_delete(lisp_environment_t* env);
+void lisp_environment_set(lisp_environment_t* env, lisp_value_t* symbol, lisp_value_t* value);
+lisp_value_t* lisp_environment_get(lisp_environment_t* env, lisp_value_t* symbol);
