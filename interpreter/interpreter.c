@@ -121,6 +121,55 @@ lisp_value_t* lisp_value_error_new(lisp_error_type_t error) {
     return lisp_error;
 }
 
+lisp_value_t * lisp_value_copy(lisp_value_t *value) {
+    lisp_value_t* copy = lisp_value_new();
+    if (copy == NULL) {
+        return &null_lisp_value;
+    }
+
+    bool ok = true;
+    switch (value->value_type) {
+        case VAL_NUMBER:
+            copy->value_type = VAL_NUMBER;
+            copy->value_number = value->value_number;
+            break;
+        case VAL_DECIMAL:
+            copy->value_type = VAL_DECIMAL;
+            copy->value_decimal = value->value_decimal;
+            break;
+        case VAL_SYMBOL:
+            copy->value_type = VAL_SYMBOL;
+            copy->value_symbol = malloc(strlen(value->value_symbol) + 1);
+            if (copy->value_symbol == NULL) {
+                ok = false;
+                break;
+            }
+            strcpy(copy->value_symbol, value->value_symbol);
+            break;
+        case VAL_SEXPR:
+        case VAL_ROOT:
+        case VAL_QEXPR:
+            copy->value_type = value->value_type;
+            copy->count = value->count;
+            copy->values = malloc(sizeof(lisp_value_t*) * value->count);
+            if (copy->values == NULL) {
+                ok = false;
+                break;
+            }
+            for (int i = 0; i < value->count; i++) {
+                copy->values[i] = lisp_value_copy(value->values[i]);
+            }
+            break;
+    }
+
+    if (!ok) {
+        lisp_value_delete(copy);
+        return &null_lisp_value;
+    }
+
+    return copy;
+}
+
 lisp_value_t* get_null_lisp_value() {
     return &null_lisp_value;
 }

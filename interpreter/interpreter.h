@@ -40,6 +40,7 @@ lisp_value_t* lisp_value_sexpr_new();
 lisp_value_t* lisp_value_root_new();
 lisp_value_t* lisp_value_qexpr_new();
 lisp_value_t* lisp_value_error_new(lisp_error_type_t error);
+lisp_value_t* lisp_value_copy(lisp_value_t* value);
 lisp_value_t* get_null_lisp_value();
 bool append_lisp_value(lisp_value_t* value, lisp_value_t* child_to_append);
 void lisp_value_set_child(lisp_value_t* value, int index, lisp_value_t* child);
