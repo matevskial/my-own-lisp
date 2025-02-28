@@ -27,8 +27,7 @@ static char *my_own_lisp_language =
     "                                                                                                         \
         number            : /-?[0-9]+/ ;                                                                      \
         decimal           : /-?[0-9]*\\.[0-9]+/ ;                                                             \
-        symbol            : '+' | '-' | '*' | '/' | '%' | '^' | \"min\" | \"max\" | \"list\"                  \
-                          | \"head\" | \"tail\" | \"join\" | \"eval\" | \"cons\" | \"len\" | \"init\" ;       \
+        symbol            : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&]+/ ;                                                \
         sexpr             : '(' <expr>* ')' ;                                                                 \
         qexpr             : '{' <expr>* '}' ;                                                                 \
         expr              : <decimal> | <number> | <symbol> | <sexpr> | <qexpr> ;                             \
@@ -118,7 +117,9 @@ int main(int argc, char** argv) {
     );
 
     lisp_environment_t* env = lisp_environment_new();
-    if (is_lisp_environment_null(env)) {
+    bool env_setup_successful = lisp_environment_setup_builtin_functions(env);
+
+    if (!env_setup_successful) {
         puts("Failed to initialize lisp evaluation environment. Probably out of memory.");
         exit(1);
     }

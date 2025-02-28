@@ -7,7 +7,8 @@ typedef enum {
     ERR_DIV_ZERO,
     ERR_BAD_NUMERIC_VALUE,
     ERR_INCOMPATIBLE_TYPES,
-    ERR_BAD_SEXPR
+    ERR_BAD_SEXPR,
+    ERR_UNBOUND_SYMBOL
 } lisp_error_type_t;
 
 typedef enum {
@@ -16,7 +17,8 @@ typedef enum {
     VAL_SYMBOL,
     VAL_SEXPR,
     VAL_ROOT,
-    VAL_QEXPR
+    VAL_QEXPR,
+    VAL_BUILTIN_FUN
 } lisp_value_type_t;
 
 typedef struct lisp_value_t {
@@ -46,6 +48,7 @@ lisp_value_t* lisp_value_symbol_new(char* value);
 lisp_value_t* lisp_value_sexpr_new();
 lisp_value_t* lisp_value_root_new();
 lisp_value_t* lisp_value_qexpr_new();
+lisp_value_t* lisp_value_builtin_fun_new(char* symbol);
 lisp_value_t* lisp_value_error_new(lisp_error_type_t error);
 lisp_value_t* lisp_value_copy(lisp_value_t* value);
 lisp_value_t* get_null_lisp_value();
@@ -79,6 +82,7 @@ lisp_value_t* evaluate_lisp_value_destructive(lisp_environment_t* env, lisp_valu
 
 lisp_environment_t* lisp_environment_new();
 void lisp_environment_delete(lisp_environment_t* env);
-void lisp_environment_set(lisp_environment_t* env, lisp_value_t* symbol, lisp_value_t* value);
+bool lisp_environment_set(lisp_environment_t* env, lisp_value_t* symbol, lisp_value_t* value);
 lisp_value_t* lisp_environment_get(lisp_environment_t* env, lisp_value_t* symbol);
 bool is_lisp_environment_null(lisp_environment_t* env);
+bool lisp_environment_setup_builtin_functions(lisp_environment_t* env);
