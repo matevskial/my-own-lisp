@@ -16,6 +16,7 @@
 * [] - Consider using github.com/tsoding/arena
 * [] - Use hashmap implementation for lisp_env* get, etc
   * either own implementation or stb_ds
+* [] - Consider using function lisp_value_copy in the non-destructive evaluation
 
 ## done
 
