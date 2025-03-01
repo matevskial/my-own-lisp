@@ -1,17 +1,16 @@
 #pragma once
 #include <stddef.h>
 
-typedef enum {
-    NO_ERROR,
-    ERR_INVALID_OPERATOR,
-    ERR_DIV_ZERO,
-    ERR_BAD_NUMERIC_VALUE,
-    ERR_INCOMPATIBLE_TYPES,
-    ERR_BAD_SEXPR,
-    ERR_UNBOUND_SYMBOL
-} lisp_error_type_t;
+static char *UNKNOWN_ERROR_MESSAGE = "Unknown error";
+static char *ERR_INVALID_OPERATOR_MESSAGE = "Invalid Operator";
+static char *ERR_DIV_ZERO_MESSAGE = "Division by zero";
+static char *ERR_BAD_NUMERIC_VALUE_MESSAGE = "Bad numeric value";
+static char *ERR_INCOMPATIBLE_TYPES_MESSAGE = "Incompatible types for operation";
+static char *ERR_BAD_SEXPR_MESSAGE = "Bad S-expression";
+static char *ERR_UNBOUND_SYMBOL_MESSAGE = "Unbound symbol";
 
 typedef enum {
+    VAL_ERR,
     VAL_NUMBER,
     VAL_DECIMAL,
     VAL_SYMBOL,
@@ -22,8 +21,8 @@ typedef enum {
 } lisp_value_type_t;
 
 typedef struct lisp_value_t {
-    lisp_error_type_t error;
     lisp_value_type_t value_type;
+    char* error_message;
     long value_number;
     double value_decimal;
     char* value_symbol;
@@ -49,7 +48,7 @@ lisp_value_t* lisp_value_sexpr_new();
 lisp_value_t* lisp_value_root_new();
 lisp_value_t* lisp_value_qexpr_new();
 lisp_value_t* lisp_value_builtin_fun_new(char* symbol);
-lisp_value_t* lisp_value_error_new(lisp_error_type_t error);
+lisp_value_t* lisp_value_error_new(char* error_message);
 lisp_value_t* lisp_value_copy(lisp_value_t* value);
 lisp_value_t* get_null_lisp_value();
 bool append_lisp_value(lisp_value_t* value, lisp_value_t* child_to_append);
