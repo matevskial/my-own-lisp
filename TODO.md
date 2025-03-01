@@ -34,7 +34,8 @@ If needed by future chapters, add VAL_FUN anyway
     * (my own bonus) make the function available only in debug mode
   * › Create an exit function for stopping the prompt and exiting.
 * [] - Consider creating static chars that represent the builtin function symbols
-
+* [] - Refactor: add val type argument in function lisp_value_new
+* 
 ## done
 
 * [v] - Use #define to introduce custom definitions for win and unix,mac to not duplicate if in input_reader.c
