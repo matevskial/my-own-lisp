@@ -6,6 +6,7 @@ static char *ERR_INVALID_OPERATOR_MESSAGE = "Invalid Operator";
 static char *ERR_DIV_ZERO_MESSAGE = "Division by zero";
 static char *ERR_BAD_NUMERIC_VALUE_MESSAGE = "Bad numeric value";
 static char *ERR_INCOMPATIBLE_TYPES_MESSAGE = "Incompatible types for operation";
+static char *ERR_INCOMPATIBLE_TYPES_MESSAGE_TEMPLATE = "Incompatible types for argument %d of %s: expected %s, got %s";
 static char *ERR_BAD_SEXPR_MESSAGE = "Bad S-expression";
 static char *ERR_UNBOUND_SYMBOL_MESSAGE = "Unbound symbol";
 
@@ -48,7 +49,7 @@ lisp_value_t* lisp_value_sexpr_new();
 lisp_value_t* lisp_value_root_new();
 lisp_value_t* lisp_value_qexpr_new();
 lisp_value_t* lisp_value_builtin_fun_new(char* symbol);
-lisp_value_t* lisp_value_error_new(char* error_message);
+lisp_value_t* lisp_value_error_new(char* error_message_template, ...);
 lisp_value_t* lisp_value_copy(lisp_value_t* value);
 lisp_value_t* get_null_lisp_value();
 bool append_lisp_value(lisp_value_t* value, lisp_value_t* child_to_append);

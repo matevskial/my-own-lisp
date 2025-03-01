@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
+
+static int MAX_ERROR_MESSAGE_BUFF_SIZE = 512;
 
 typedef lisp_value_t lisp_value_t;
 
@@ -126,18 +129,33 @@ lisp_value_t * lisp_value_builtin_fun_new(char *symbol) {
     return lisp_value;
 }
 
-lisp_value_t* lisp_value_error_new(char* error_message) {
+lisp_value_t* lisp_value_error_new(char* error_message_template, ...) {
     lisp_value_t* lisp_error = lisp_value_new();
     if (lisp_error == NULL) {
         return &null_lisp_value;
     }
     lisp_error->value_type = VAL_ERR;
-    lisp_error->error_message = malloc(strlen(error_message) + 1);
-    if (lisp_error->error_message == NULL) {
-        lisp_value_delete(lisp_error);
-        return &null_lisp_value;
+
+    va_list va;
+    va_start(va, error_message_template);
+
+    bool ok = false;
+    lisp_error->error_message = malloc(sizeof(char) * MAX_ERROR_MESSAGE_BUFF_SIZE);
+    if (lisp_error->error_message != NULL) {
+        vsnprintf(lisp_error->error_message, MAX_ERROR_MESSAGE_BUFF_SIZE - 1, error_message_template, va);
+        char* error_message = realloc(lisp_error->error_message, strlen(lisp_error->error_message) + 1);
+        if (error_message != NULL) {
+            lisp_error->error_message = error_message;
+            ok = true;
+        }
     }
-    strcpy(lisp_error->error_message, error_message);
+
+    va_end(va);
+    if (!ok) {
+        lisp_value_delete(lisp_error);
+        lisp_error = &null_lisp_value;
+    }
+
     return lisp_error;
 }
 
@@ -965,12 +983,36 @@ lisp_value_t* builtin_init(lisp_value_t* arguments) {
     return qexpr;
 }
 
+char* get_value_type_string(lisp_value_type_t value_type) {
+    switch (value_type) {
+        case VAL_ERR:
+            return "Error";
+        case VAL_NUMBER:
+            return "Number";
+        case VAL_DECIMAL:
+            return "Decimal";
+        case VAL_SYMBOL:
+            return "Symbol";
+        case VAL_SEXPR:
+            return "S-expression";
+        case VAL_ROOT:
+            return "Root-expression";
+        case VAL_QEXPR:
+            return "Q-expression";
+        case VAL_BUILTIN_FUN:
+            return "Built-in";
+        default:
+            return "Unknown type";
+    }
+}
+
 lisp_value_t* builtin_def(lisp_environment_t* env, lisp_value_t* arguments) {
     lisp_value_t* qexpr_of_symbols = lisp_value_pop_child(arguments, 0);
     if (qexpr_of_symbols->value_type != VAL_QEXPR) {
+        lisp_value_t* error = lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE_TEMPLATE, 1, "def", get_value_type_string(VAL_QEXPR), get_value_type_string(qexpr_of_symbols->value_type));
         lisp_value_delete(qexpr_of_symbols);
         lisp_value_delete(arguments);
-        return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE);
+        return error;
     }
 
     if (qexpr_of_symbols->count != arguments->count) {
