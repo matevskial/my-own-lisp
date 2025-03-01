@@ -27,7 +27,7 @@ static char *my_own_lisp_language =
     "                                                                                                         \
         number            : /-?[0-9]+/ ;                                                                      \
         decimal           : /-?[0-9]*\\.[0-9]+/ ;                                                             \
-        symbol            : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&]+/ ;                                                \
+        symbol            : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&%^]+/ ;                                              \
         sexpr             : '(' <expr>* ')' ;                                                                 \
         qexpr             : '{' <expr>* '}' ;                                                                 \
         expr              : <decimal> | <number> | <symbol> | <sexpr> | <qexpr> ;                             \

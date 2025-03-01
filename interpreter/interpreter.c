@@ -40,6 +40,29 @@ lisp_value_t* lisp_value_new(lisp_value_type_t value_type) {
     return lisp_value;
 }
 
+char* get_value_type_string(lisp_value_type_t value_type) {
+    switch (value_type) {
+        case VAL_ERR:
+            return "Error";
+        case VAL_NUMBER:
+            return "Number";
+        case VAL_DECIMAL:
+            return "Decimal";
+        case VAL_SYMBOL:
+            return "Symbol";
+        case VAL_SEXPR:
+            return "S-expression";
+        case VAL_ROOT:
+            return "Root-expression";
+        case VAL_QEXPR:
+            return "Q-expression";
+        case VAL_BUILTIN_FUN:
+            return "Built-in";
+        default:
+            return "Unknown type";
+    }
+}
+
 lisp_value_t* lisp_value_number_new(long value) {
     lisp_value_t* lisp_value = lisp_value_new(VAL_NUMBER);
     if (lisp_value == NULL) {
@@ -827,21 +850,23 @@ lisp_value_t* execute_binary_operation_destructive(char* operation, lisp_value_t
     return lisp_value_error_new(ERR_INVALID_OPERATOR_MESSAGE);
 }
 
-#define ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments) \
+#define ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments, builtin_fun) \
     do {\
         if (arguments->count != 1) {\
+            lisp_value_t* error = lisp_value_error_new(ERR_INVALID_NUMBER_OF_ARGUMENTS_MESSAGE_TEMPLATE, builtin_fun, 1, arguments->count);\
             lisp_value_delete(arguments);\
-            return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE);\
+            return error;\
         }\
 \
         if (arguments->values[0]->value_type != VAL_QEXPR) {\
+            lisp_value_t* error = lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE_TEMPLATE, 1, builtin_fun, get_value_type_string(VAL_QEXPR), get_value_type_string(arguments->values[0]->value_type));\
             lisp_value_delete(arguments);\
-            return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE);\
+            return error;\
         }\
     } while (0);
 
 lisp_value_t* builtin_head(lisp_value_t* arguments) {
-    ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments);
+    ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments, "head");
 
     lisp_value_t* qexpr = lisp_value_pop_child(arguments, 0);
 
@@ -860,7 +885,7 @@ lisp_value_t* builtin_head(lisp_value_t* arguments) {
 }
 
 lisp_value_t* builtin_tail(lisp_value_t* arguments) {
-    ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments);
+    ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments, "tail");
 
     lisp_value_t* qexpr = lisp_value_pop_child(arguments, 0);
 
@@ -878,8 +903,9 @@ lisp_value_t* builtin_tail(lisp_value_t* arguments) {
 lisp_value_t* builtin_join(lisp_value_t* arguments) {
     for (int i = 0; i < arguments->count; i++) {
         if (arguments->values[i]->value_type != VAL_QEXPR) {
+            lisp_value_t* error = lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE_TEMPLATE, i + 1, "join", get_value_type_string(VAL_QEXPR), get_value_type_string(arguments->values[i]->value_type));
             lisp_value_delete(arguments);
-            return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE);
+            return error;
         }
     }
 
@@ -902,7 +928,7 @@ lisp_value_t* builtin_join(lisp_value_t* arguments) {
 }
 
 lisp_value_t* builtin_eval(lisp_environment_t* env, lisp_value_t* arguments) {
-    ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments);
+    ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments, "eval");
     lisp_value_t* qexpr = lisp_value_pop_child(arguments, 0);
     qexpr->value_type = VAL_SEXPR;
     lisp_value_t* result = evaluate_lisp_value_destructive(env, qexpr);
@@ -912,18 +938,20 @@ lisp_value_t* builtin_eval(lisp_environment_t* env, lisp_value_t* arguments) {
 
 lisp_value_t* builtin_cons(lisp_value_t* arguments) {
     if (arguments->count != 2) {
+        lisp_value_t* error = lisp_value_error_new(ERR_INVALID_NUMBER_OF_ARGUMENTS_MESSAGE_TEMPLATE, "cons", 2, arguments->count);
         lisp_value_delete(arguments);
-        return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE);
+        return error;
     }
 
     lisp_value_t* value_to_cons = lisp_value_pop_child(arguments, 0);
     lisp_value_t* existing_qexpr = lisp_value_pop_child(arguments, 0);
 
     if (existing_qexpr->value_type != VAL_QEXPR) {
+        lisp_value_t* error = lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE_TEMPLATE, 2, "cons", get_value_type_string(VAL_QEXPR), get_value_type_string(existing_qexpr->value_type));
         lisp_value_delete(existing_qexpr);
         lisp_value_delete(value_to_cons);
         lisp_value_delete(arguments);
-        return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE);
+        return error;
     }
 
     lisp_value_t* result_qexpr = lisp_value_qexpr_new();
@@ -953,7 +981,7 @@ lisp_value_t* builtin_cons(lisp_value_t* arguments) {
 }
 
 lisp_value_t* builtin_len(lisp_value_t* arguments) {
-    ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments);
+    ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments, "len");
     lisp_value_t* qexpr = lisp_value_pop_child(arguments, 0);
     lisp_value_t* result = lisp_value_number_new(qexpr->count);
     lisp_value_delete(arguments);
@@ -961,7 +989,7 @@ lisp_value_t* builtin_len(lisp_value_t* arguments) {
 }
 
 lisp_value_t* builtin_init(lisp_value_t* arguments) {
-    ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments);
+    ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments, "init");
     lisp_value_t* qexpr = lisp_value_pop_child(arguments, 0);
     if (qexpr->count < 1) {
         return qexpr;
@@ -969,29 +997,6 @@ lisp_value_t* builtin_init(lisp_value_t* arguments) {
     lisp_value_t* last_child = lisp_value_pop_child(qexpr, qexpr->count - 1);
     lisp_value_delete(last_child);
     return qexpr;
-}
-
-char* get_value_type_string(lisp_value_type_t value_type) {
-    switch (value_type) {
-        case VAL_ERR:
-            return "Error";
-        case VAL_NUMBER:
-            return "Number";
-        case VAL_DECIMAL:
-            return "Decimal";
-        case VAL_SYMBOL:
-            return "Symbol";
-        case VAL_SEXPR:
-            return "S-expression";
-        case VAL_ROOT:
-            return "Root-expression";
-        case VAL_QEXPR:
-            return "Q-expression";
-        case VAL_BUILTIN_FUN:
-            return "Built-in";
-        default:
-            return "Unknown type";
-    }
 }
 
 lisp_value_t* builtin_def(lisp_environment_t* env, lisp_value_t* arguments) {
@@ -1004,16 +1009,18 @@ lisp_value_t* builtin_def(lisp_environment_t* env, lisp_value_t* arguments) {
     }
 
     if (qexpr_of_symbols->count != arguments->count) {
+        lisp_value_t* error = lisp_value_error_new(ERR_BUILTIN_DEF_INVALID_VALUE_COUNT_MESSAGE_TEMPLATE, qexpr_of_symbols->count, arguments->count);
         lisp_value_delete(qexpr_of_symbols);
         lisp_value_delete(arguments);
-        return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE);
+        return error;
     }
 
     for (int i = 0; i < qexpr_of_symbols->count; i++) {
         if (qexpr_of_symbols->values[i]->value_type != VAL_SYMBOL) {
+            lisp_value_t* error = lisp_value_error_new(ERR_BUILTIN_DEF_INVALID_TYPE_FOR_VARIABLE_NAME_MESSAGE_TEMPLATE, get_value_type_string(VAL_SYMBOL), get_value_type_string(qexpr_of_symbols->values[i]->value_type));
             lisp_value_delete(qexpr_of_symbols);
             lisp_value_delete(arguments);
-            return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE);
+            return error;
         }
     }
 
