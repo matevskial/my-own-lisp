@@ -973,6 +973,37 @@ lisp_value_t* builtin_init(lisp_value_t* arguments) {
     return qexpr;
 }
 
+lisp_value_t* builtin_def(lisp_environment_t* env, lisp_value_t* arguments) {
+    lisp_value_t* qexpr_of_symbols = lisp_value_pop_child(arguments, 0);
+    if (qexpr_of_symbols->value_type != VAL_QEXPR) {
+        lisp_value_delete(qexpr_of_symbols);
+        lisp_value_delete(arguments);
+        return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
+    }
+
+    if (qexpr_of_symbols->count != arguments->count) {
+        lisp_value_delete(qexpr_of_symbols);
+        lisp_value_delete(arguments);
+        return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
+    }
+
+    for (int i = 0; i < qexpr_of_symbols->count; i++) {
+        if (qexpr_of_symbols->values[i]->value_type != VAL_SYMBOL) {
+            lisp_value_delete(qexpr_of_symbols);
+            lisp_value_delete(arguments);
+            return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES);
+        }
+    }
+
+    for (int i = 0; i < qexpr_of_symbols->count; i++) {
+        lisp_environment_set(env, qexpr_of_symbols->values[i], arguments->values[i]);
+    }
+
+    lisp_value_delete(qexpr_of_symbols);
+    lisp_value_delete(arguments);
+    return lisp_value_sexpr_new();
+}
+
 /* Assumes value is sexpr of one operator(builtin fun) and at least one operand and all operands are previously evaluated */
 lisp_value_t* builtin_operation(lisp_environment_t* env, lisp_value_t* value) {
     lisp_value_t* operation = lisp_value_pop_child(value, 0);
@@ -1030,6 +1061,12 @@ lisp_value_t* builtin_operation(lisp_environment_t* env, lisp_value_t* value) {
 
     if (strcmp(operation->value_symbol, "init") == 0) {
         lisp_value_t* result = builtin_init(value);
+        lisp_value_delete(operation);
+        return result;
+    }
+
+    if (strcmp(operation->value_symbol, "def") == 0) {
+        lisp_value_t* result = builtin_def(env, value);
         lisp_value_delete(operation);
         return result;
     }
@@ -1260,6 +1297,7 @@ bool lisp_environment_setup_builtin_functions(lisp_environment_t *env) {
     ok = ok && lisp_environment_setup_builtin_function(env, "cons");
     ok = ok && lisp_environment_setup_builtin_function(env, "len");
     ok = ok && lisp_environment_setup_builtin_function(env, "init");
+    ok = ok && lisp_environment_setup_builtin_function(env, "def");
 
     return ok;
 }
