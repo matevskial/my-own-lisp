@@ -33,6 +33,7 @@ If needed by future chapters, add VAL_FUN anyway
   * › Write a function for printing out all the named values in an environment.
     * (my own bonus) make the function available only in debug mode
   * › Create an exit function for stopping the prompt and exiting.
+* [] - Consider creating static chars that represent the builtin function symbols
 
 ## done
 
