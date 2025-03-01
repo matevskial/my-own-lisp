@@ -25,12 +25,12 @@ static lisp_environment_t null_lisp_environment = {
     .values = NULL
 };
 
-lisp_value_t* lisp_value_new() {
+lisp_value_t* lisp_value_new(lisp_value_type_t value_type) {
     lisp_value_t* lisp_value = malloc(sizeof(lisp_value_t));
     if (lisp_value == NULL) {
         return NULL;
     }
-    lisp_value->value_type = VAL_NUMBER;
+    lisp_value->value_type = value_type;
     lisp_value->error_message = NULL;
     lisp_value->value_number = 0;
     lisp_value->value_decimal = 0;
@@ -41,31 +41,28 @@ lisp_value_t* lisp_value_new() {
 }
 
 lisp_value_t* lisp_value_number_new(long value) {
-    lisp_value_t* lisp_value = lisp_value_new();
+    lisp_value_t* lisp_value = lisp_value_new(VAL_NUMBER);
     if (lisp_value == NULL) {
         return &null_lisp_value;
     }
-    lisp_value->value_type = VAL_NUMBER;
     lisp_value->value_number = value;
     return lisp_value;
 }
 
 lisp_value_t* lisp_value_decimal_new(double value) {
-    lisp_value_t* lisp_value = lisp_value_new();
+    lisp_value_t* lisp_value = lisp_value_new(VAL_DECIMAL);
     if (lisp_value == NULL) {
         return &null_lisp_value;
     }
-    lisp_value->value_type = VAL_DECIMAL;
     lisp_value->value_decimal = value;
     return lisp_value;
 }
 
 lisp_value_t* lisp_value_symbol_new(char* value) {
-    lisp_value_t* lisp_value = lisp_value_new();
+    lisp_value_t* lisp_value = lisp_value_new(VAL_SYMBOL);
     if (lisp_value == NULL) {
         return &null_lisp_value;
     }
-    lisp_value->value_type = VAL_SYMBOL;
     lisp_value->value_symbol = malloc(strlen(value) + 1);
     if (lisp_value->value_symbol == NULL) {
         lisp_value_delete(lisp_value);
@@ -76,29 +73,26 @@ lisp_value_t* lisp_value_symbol_new(char* value) {
 }
 
 lisp_value_t* lisp_value_sexpr_new() {
-    lisp_value_t* lisp_value = lisp_value_new();
+    lisp_value_t* lisp_value = lisp_value_new(VAL_SEXPR);
     if (lisp_value == NULL) {
         return &null_lisp_value;
     }
-    lisp_value->value_type = VAL_SEXPR;
     return lisp_value;
 }
 
 lisp_value_t * lisp_value_root_new() {
-    lisp_value_t* lisp_value = lisp_value_new();
+    lisp_value_t* lisp_value = lisp_value_new(VAL_ROOT);
     if (lisp_value == NULL) {
         return &null_lisp_value;
     }
-    lisp_value->value_type = VAL_ROOT;
     return lisp_value;
 }
 
 lisp_value_t * lisp_value_qexpr_new() {
-    lisp_value_t* lisp_value = lisp_value_new();
+    lisp_value_t* lisp_value = lisp_value_new(VAL_QEXPR);
     if (lisp_value == NULL) {
         return &null_lisp_value;
     }
-    lisp_value->value_type = VAL_QEXPR;
     return lisp_value;
 }
 
@@ -130,11 +124,10 @@ lisp_value_t * lisp_value_builtin_fun_new(char *symbol) {
 }
 
 lisp_value_t* lisp_value_error_new(char* error_message_template, ...) {
-    lisp_value_t* lisp_error = lisp_value_new();
+    lisp_value_t* lisp_error = lisp_value_new(VAL_ERR);
     if (lisp_error == NULL) {
         return &null_lisp_value;
     }
-    lisp_error->value_type = VAL_ERR;
 
     va_list va;
     va_start(va, error_message_template);
@@ -160,7 +153,7 @@ lisp_value_t* lisp_value_error_new(char* error_message_template, ...) {
 }
 
 lisp_value_t * lisp_value_copy(lisp_value_t *value) {
-    lisp_value_t* copy = lisp_value_new();
+    lisp_value_t* copy = lisp_value_new(value->value_type);
     if (copy == NULL) {
         return &null_lisp_value;
     }
@@ -168,7 +161,6 @@ lisp_value_t * lisp_value_copy(lisp_value_t *value) {
     bool ok = true;
     switch (value->value_type) {
         case VAL_ERR:
-            copy->value_type = VAL_ERR;
             copy->error_message = malloc(strlen(value->error_message) + 1);
             if (copy->error_message == NULL) {
                 ok = false;
@@ -177,16 +169,13 @@ lisp_value_t * lisp_value_copy(lisp_value_t *value) {
             strcpy(copy->error_message, value->error_message);
             break;
         case VAL_NUMBER:
-            copy->value_type = VAL_NUMBER;
             copy->value_number = value->value_number;
             break;
         case VAL_DECIMAL:
-            copy->value_type = VAL_DECIMAL;
             copy->value_decimal = value->value_decimal;
             break;
         case VAL_SYMBOL:
             case VAL_BUILTIN_FUN:
-            copy->value_type = value->value_type;
             copy->value_symbol = malloc(strlen(value->value_symbol) + 1);
             if (copy->value_symbol == NULL) {
                 ok = false;
@@ -197,7 +186,6 @@ lisp_value_t * lisp_value_copy(lisp_value_t *value) {
         case VAL_SEXPR:
         case VAL_ROOT:
         case VAL_QEXPR:
-            copy->value_type = value->value_type;
             copy->count = value->count;
             copy->values = malloc(sizeof(lisp_value_t*) * value->count);
             if (copy->values == NULL) {
