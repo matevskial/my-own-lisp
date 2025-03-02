@@ -12,6 +12,7 @@ static char *ERR_INCOMPATIBLE_TYPES_MESSAGE_TEMPLATE = "Incompatible type for ar
 static char *ERR_BUILTIN_DEF_INVALID_VALUE_COUNT_MESSAGE_TEMPLATE = "Invalid number of values for defining variables: expected %d, got %d";
 static char *ERR_BUILTIN_DEF_INVALID_TYPE_FOR_VARIABLE_NAME_MESSAGE_TEMPLATE = "Invalid type for variable name: expected %s, got %s";
 static char *ERR_INVALID_NUMBER_OF_ARGUMENTS_MESSAGE_TEMPLATE = "Invalid number of arguments for %s: expected: %d, got %d";
+static char *ERR_AT_LEAST_ONE_ARGUMENT_EXPECTED_MESSAGE_TEMPLATE = "Expected at least one argument for %s";
 
 typedef enum {
     VAL_ERR,

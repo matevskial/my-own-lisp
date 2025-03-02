@@ -680,173 +680,68 @@ lisp_eval_result_t* evaluate_root_lisp_value(lisp_value_t* value) {
 
 //// evaluate destructive implementation
 
-lisp_value_t * negate_lisp_value_destructive(lisp_value_t * value) {
-    if (value->value_type == VAL_NUMBER) {
-        value->value_number = -value->value_number;
-        return value;
-    }
-    if (value->value_type == VAL_DECIMAL) {
-        value->value_decimal = -value->value_decimal;
-        return value;
-    }
-
-    lisp_value_t* value_error = lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE);
-    lisp_value_delete(value);
-    return value_error;
-}
-
-lisp_value_t* execute_unary_operation_destructive(char* operation, lisp_value_t* operand) {
-    if (operand == &null_lisp_value) {
-        return &null_lisp_value;
-    }
-
-    if (strcmp(operation, "-") == 0) {
-        return negate_lisp_value_destructive(operand);
-    }
-    return operand;
-}
-
-lisp_value_t* arithmetic_op_number(char operation, long value1, long value2) {
-    if (operation == '+') {
+lisp_value_t* numeric_op_number(char* operation, long value1, long value2) {
+    if (operation[0] == '+') {
         return lisp_value_number_new(value1 + value2);
     }
-    if (operation == '-') {
+    if (operation[0] == '-') {
         return lisp_value_number_new(value1 - value2);
     }
-    if (operation == '*') {
+    if (operation[0] == '*') {
         return lisp_value_number_new(value1 * value2);
     }
-    if (operation == '/') {
+    if (operation[0] == '/') {
         if (value2 == 0) {
-            return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE);
+            return lisp_value_error_new(ERR_DIV_ZERO_MESSAGE);
         }
         return lisp_value_number_new(value1 / value2);
     }
-    if (operation == '%') {
+    if (operation[0] == '%') {
         if (value2 == 0) {
             return lisp_value_error_new(ERR_DIV_ZERO_MESSAGE);
         }
         return lisp_value_number_new(value1 % value2);
     }
-    if (operation == '^') {
+    if (operation[0] == '^') {
         return lisp_value_number_new((long) pow((double) value1, (double) value2));
+    }
+    if (strcmp(operation, "min") == 0) {
+        return lisp_value_number_new(value1 < value2 ? value1 : value2);
+    }
+    if (strcmp(operation, "max") == 0) {
+        return lisp_value_number_new(value1 > value2 ? value1 : value2);
     }
     return lisp_value_error_new(ERR_INVALID_OPERATOR_MESSAGE);
 }
 
-lisp_value_t* arithmetic_op_decimal(char operation, double value1, double value2) {
-    if (operation == '+') {
+lisp_value_t* numeric_op_decimal(char* operation, double value1, double value2) {
+    if (operation[0] == '+') {
         return lisp_value_decimal_new(value1 + value2);
     }
-    if (operation == '-') {
+    if (operation[0] == '-') {
         return lisp_value_decimal_new(value1 - value2);
     }
-    if (operation == '*') {
+    if (operation[0] == '*') {
         return lisp_value_decimal_new(value1 * value2);
     }
-    if (operation == '/') {
+    if (operation[0] == '/') {
         if (value2 == 0) {
-            return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE);
+            return lisp_value_error_new(ERR_DIV_ZERO_MESSAGE);
         }
         return lisp_value_decimal_new(value1 / value2);
     }
-    if (operation == '%') {
+    if (operation[0] == '%') {
         return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE);
     }
-    if (operation == '^') {
+    if (operation[0] == '^') {
         return lisp_value_decimal_new(pow(value1, value2));
     }
-    return lisp_value_error_new(ERR_INVALID_OPERATOR_MESSAGE);
-}
-
-lisp_value_t* builtin_arithmetic_op_lisp_values_destructive(char operation, lisp_value_t* first_operand, lisp_value_t* second_operand) {
-    lisp_value_t* result = NULL;
-
-    if (first_operand->value_type == VAL_NUMBER && second_operand->value_type == VAL_NUMBER) {
-        result = arithmetic_op_number(operation, first_operand->value_number, second_operand->value_number);
-    } else if (first_operand->value_type == VAL_DECIMAL && second_operand->value_type == VAL_DECIMAL) {
-        result = arithmetic_op_decimal(operation, first_operand->value_decimal, second_operand->value_decimal);
-    } else if (first_operand->value_type == VAL_NUMBER && second_operand->value_type == VAL_DECIMAL) {
-        result = arithmetic_op_decimal(operation, (double) first_operand->value_number, second_operand->value_decimal);
-    } else if (first_operand->value_type == VAL_DECIMAL && second_operand->value_type == VAL_NUMBER) {
-        result = arithmetic_op_decimal(operation, first_operand->value_decimal, (double) second_operand->value_number);
-    }
-
-    lisp_value_delete(first_operand);
-    lisp_value_delete(second_operand);
-    if (result != NULL) {
-        return result;
-    }
-    return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE);
-}
-
-lisp_value_t * builtin_min(lisp_value_t * first_operand, lisp_value_t * second_operand) {
-    lisp_value_t* result = NULL;
-
-    if (first_operand->value_type == VAL_NUMBER && second_operand->value_type == VAL_NUMBER) {
-        result = lisp_value_number_new(
-            first_operand->value_number < second_operand->value_number
-            ? first_operand->value_number
-            : second_operand->value_number);
-    } else if (first_operand->value_type == VAL_DECIMAL && second_operand->value_type == VAL_DECIMAL) {
-        result = lisp_value_decimal_new(
-            first_operand->value_decimal < second_operand->value_decimal
-            ? first_operand->value_decimal
-            : second_operand->value_decimal);
-    }
-
-
-    lisp_value_delete(first_operand);
-    lisp_value_delete(second_operand);
-    if (result != NULL) {
-        return result;
-    }
-    return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE);
-}
-
-lisp_value_t * builtin_max(lisp_value_t * first_operand, lisp_value_t * second_operand) {
-    lisp_value_t* result = NULL;
-
-    if (first_operand->value_type == VAL_NUMBER && second_operand->value_type == VAL_NUMBER) {
-        result = lisp_value_number_new(
-            first_operand->value_number > second_operand->value_number
-            ? first_operand->value_number
-            : second_operand->value_number);
-    } else if (first_operand->value_type == VAL_DECIMAL && second_operand->value_type == VAL_DECIMAL) {
-        result = lisp_value_decimal_new(
-            first_operand->value_decimal > second_operand->value_decimal
-            ? first_operand->value_decimal
-            : second_operand->value_decimal);
-    }
-
-
-    lisp_value_delete(first_operand);
-    lisp_value_delete(second_operand);
-    if (result != NULL) {
-        return result;
-    }
-    return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE);
-}
-
-lisp_value_t* execute_binary_operation_destructive(char* operation, lisp_value_t* first_operand, lisp_value_t* second_operand) {
-    if (first_operand == &null_lisp_value || second_operand == &null_lisp_value) {
-        lisp_value_delete(first_operand);
-        lisp_value_delete(second_operand);
-        return &null_lisp_value;
-    }
-
-    if (strpbrk(operation, "+-*/^%") != NULL) {
-        return builtin_arithmetic_op_lisp_values_destructive(operation[0], first_operand, second_operand);
-    }
     if (strcmp(operation, "min") == 0) {
-        return builtin_min(first_operand, second_operand);
+        return lisp_value_decimal_new(value1 < value2 ? value1 : value2);
     }
     if (strcmp(operation, "max") == 0) {
-        return builtin_max(first_operand, second_operand);
+        return lisp_value_decimal_new(value1 > value2 ? value1 : value2);
     }
-
-    lisp_value_delete(first_operand);
-    lisp_value_delete(second_operand);
     return lisp_value_error_new(ERR_INVALID_OPERATOR_MESSAGE);
 }
 
@@ -1033,6 +928,77 @@ lisp_value_t* builtin_def(lisp_environment_t* env, lisp_value_t* arguments) {
     return lisp_value_sexpr_new();
 }
 
+lisp_value_t* builtin_operation_for_numeric_arguments(char* operation, lisp_value_t* arguments) {
+    if (arguments->count < 1) {
+        lisp_value_t* error = lisp_value_error_new(ERR_AT_LEAST_ONE_ARGUMENT_EXPECTED_MESSAGE_TEMPLATE, operation);
+        lisp_value_delete(arguments);
+        return error;
+    }
+
+    long result_number = arguments->values[0]->value_type == VAL_NUMBER
+        ? arguments->values[0]->value_number
+        : (long) arguments->values[0]->value_decimal;
+    double result_decimal = arguments->values[0]->value_type == VAL_NUMBER
+        ? (double) arguments->values[0]->value_number
+        : arguments->values[0]->value_decimal;
+    bool is_decimal = arguments->values[0]->value_type == VAL_DECIMAL ? true : false;
+
+    for (int i = 0; i < arguments->count; i++) {
+        if (arguments->values[i]->value_type != VAL_NUMBER && arguments->values[i]->value_type != VAL_DECIMAL) {
+            lisp_value_t* error = lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE_TEMPLATE, i + 1, operation, "Number or Decimal", get_value_type_string(arguments->values[i]->value_type));
+            lisp_value_delete(arguments);
+            return error;
+        }
+
+        // min and max should return non-error if all numeric values are only of one type
+        if (strcmp(operation, "min") == 0 || strcmp(operation, "max") == 0) {
+            if ((is_decimal && arguments->values[i]->value_type == VAL_NUMBER)|| (!is_decimal && arguments->values[i]->value_type == VAL_DECIMAL)) {
+                lisp_value_delete(arguments);
+                return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE);
+            }
+        }
+
+        is_decimal = arguments->values[i]->value_type == VAL_DECIMAL ? true : false;
+
+        if (i == 0) {
+            continue;
+        }
+
+        lisp_value_t* r = numeric_op_number(operation, result_number, arguments->values[i]->value_type == VAL_NUMBER
+        ? arguments->values[i]->value_number
+        : (long) arguments->values[i]->value_decimal);
+        if (!is_decimal && is_lisp_value_error(r)) {
+            lisp_value_delete(arguments);
+            return r;
+        }
+        result_number = r->value_number;
+
+        lisp_value_t* r1 = numeric_op_decimal(operation, result_decimal, arguments->values[i]->value_type == VAL_NUMBER
+        ? (double) arguments->values[i]->value_number
+        : arguments->values[i]->value_decimal);
+        if (is_decimal && is_lisp_value_error(r1)) {
+            lisp_value_delete(r);
+            lisp_value_delete(arguments);
+            return r1;
+        }
+
+        result_decimal = r1->value_decimal;
+        lisp_value_delete(r1);
+        lisp_value_delete(r);
+    }
+
+    if (operation[0] == '-' && arguments->count == 1) {
+        result_number = -result_number;
+        result_decimal = -result_decimal;
+    }
+
+    lisp_value_delete(arguments);
+    if (is_decimal) {
+        return lisp_value_decimal_new(result_decimal);
+    }
+    return lisp_value_number_new(result_number);
+}
+
 /* Assumes value is sexpr of one operator(builtin fun) and at least one operand and all operands are previously evaluated */
 lisp_value_t* builtin_operation(lisp_environment_t* env, lisp_value_t* value) {
     lisp_value_t* operation = lisp_value_pop_child(value, 0);
@@ -1044,6 +1010,13 @@ lisp_value_t* builtin_operation(lisp_environment_t* env, lisp_value_t* value) {
         lisp_value_delete(operation);
         lisp_value_delete(value);
         return lisp_value_error_new(ERR_INVALID_OPERATOR_MESSAGE);
+    }
+
+    if (strpbrk(operation->value_symbol, "+-*/^%") != NULL
+        || strcmp(operation->value_symbol, "min") == 0 || strcmp(operation->value_symbol, "max") == 0) {
+        lisp_value_t* result = builtin_operation_for_numeric_arguments(operation->value_symbol, value);
+        lisp_value_delete(operation);
+        return result;
     }
 
     if (strcmp(operation->value_symbol, "list") == 0) {
@@ -1100,27 +1073,9 @@ lisp_value_t* builtin_operation(lisp_environment_t* env, lisp_value_t* value) {
         return result;
     }
 
-    lisp_value_t* first_operand = lisp_value_pop_child(value, 0);
-    if (value->count == 0) {
-        first_operand = execute_unary_operation_destructive(operation->value_symbol, first_operand);
-    }
-    while (value->count > 0) {
-        if (first_operand == &null_lisp_value) {
-            lisp_value_delete(operation);
-            lisp_value_delete(value);
-            return &null_lisp_value;
-        }
-        if (is_lisp_value_error(first_operand)) {
-            break;
-        }
-        lisp_value_t* second_operand = lisp_value_pop_child(value, 0);
-        lisp_value_t* next_value = execute_binary_operation_destructive(operation->value_symbol, first_operand, second_operand);
-        first_operand = next_value;
-    }
-
     lisp_value_delete(operation);
     lisp_value_delete(value);
-    return first_operand;
+    return lisp_value_error_new(ERR_INVALID_OPERATOR_MESSAGE);
 }
 
 lisp_value_t* evaluate_lisp_value_destructive(lisp_environment_t *env, lisp_value_t* value) {
