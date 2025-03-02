@@ -13,6 +13,7 @@ static char *ERR_BUILTIN_DEF_INVALID_VALUE_COUNT_MESSAGE_TEMPLATE = "Invalid num
 static char *ERR_BUILTIN_DEF_INVALID_TYPE_FOR_VARIABLE_NAME_MESSAGE_TEMPLATE = "Invalid type for variable name: expected %s, got %s";
 static char *ERR_INVALID_NUMBER_OF_ARGUMENTS_MESSAGE_TEMPLATE = "Invalid number of arguments for %s: expected: %d, got %d";
 static char *ERR_AT_LEAST_ONE_ARGUMENT_EXPECTED_MESSAGE_TEMPLATE = "Expected at least one argument for %s";
+static char *ERR_NOT_ALLOWED_TO_REDEFINE_BUILTIN_FUN_MESSAGE_TEMPLATE = "Builtin %s not allowed to be redefined";
 
 typedef enum {
     VAL_ERR,
@@ -88,5 +89,7 @@ lisp_environment_t* lisp_environment_new();
 void lisp_environment_delete(lisp_environment_t* env);
 bool lisp_environment_set(lisp_environment_t* env, lisp_value_t* symbol, lisp_value_t* value);
 lisp_value_t* lisp_environment_get(lisp_environment_t* env, lisp_value_t* symbol);
+bool lisp_environment_exists(lisp_environment_t* env, char* symbol_str);
 bool is_lisp_environment_null(lisp_environment_t* env);
 bool lisp_environment_setup_builtin_functions(lisp_environment_t* env);
+void println_lisp_environment(lisp_environment_t* env);

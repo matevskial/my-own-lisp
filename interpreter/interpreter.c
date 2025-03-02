@@ -935,6 +935,15 @@ lisp_value_t* builtin_def(lisp_environment_t* env, lisp_value_t* arguments) {
             lisp_value_delete(arguments);
             return error;
         }
+        lisp_value_t* value = lisp_environment_get(env, qexpr_of_symbols->values[i]);
+        if (value->value_type == VAL_BUILTIN_FUN) {
+            lisp_value_t* error = lisp_value_error_new(ERR_NOT_ALLOWED_TO_REDEFINE_BUILTIN_FUN_MESSAGE_TEMPLATE, value->value_symbol);
+            lisp_value_delete(value);
+            lisp_value_delete(qexpr_of_symbols);
+            lisp_value_delete(arguments);
+            return error;
+        }
+        lisp_value_delete(value);
     }
 
     for (int i = 0; i < qexpr_of_symbols->count; i++) {
@@ -1264,6 +1273,20 @@ lisp_value_t* lisp_environment_get(lisp_environment_t* env, lisp_value_t *symbol
     return result;
 }
 
+bool lisp_environment_exists(lisp_environment_t* env, char* symbol_str) {
+    lisp_value_t* symbol = lisp_value_symbol_new(symbol_str);
+    lisp_value_t* result = lisp_environment_get(env, symbol);
+    lisp_value_delete(symbol);
+
+    if (result == &null_lisp_value) {
+        return false;
+    }
+    if (result->value_type == VAL_ERR && strcmp(result->error_message, ERR_UNBOUND_SYMBOL_MESSAGE) == 0) {
+        return false;
+    }
+    return true;
+}
+
 bool is_lisp_environment_null(lisp_environment_t *env) {
     return env == &null_lisp_environment;
 }
@@ -1302,4 +1325,13 @@ bool lisp_environment_setup_builtin_functions(lisp_environment_t *env) {
     ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_DEF);
 
     return ok;
+}
+
+void println_lisp_environment(lisp_environment_t* env) {
+    puts("Lisp environment:");
+    for (int i = 0; i < env->count; i++) {
+        printf("%s\t", env->symbols[i]);
+        print_lisp_value(env->values[i]);
+        putchar('\n');
+    }
 }

@@ -34,6 +34,9 @@ static char *my_own_lisp_language =
         my_own_lisp       : /^/ <expr>* /$/ ;                                                                 \
     ";
 
+static char* REPL_COMMAND_EXIT = "exit";
+static char* REPL_COMMAND_PRINT_LISP_ENVIRONMENT = "print_lisp_environment";
+
 bool has_tag(mpc_ast_t * ast, char * tag) {
     return strstr(ast->tag, tag) != NULL;
 }
@@ -139,6 +142,16 @@ int main(int argc, char** argv) {
             continue;
         }
 
+        if (!lisp_environment_exists(env, input_buff)) {
+            if (strcmp(input_buff, REPL_COMMAND_EXIT) == 0) {
+                break;
+            }
+            if (strcmp(input_buff, REPL_COMMAND_PRINT_LISP_ENVIRONMENT) == 0) {
+                println_lisp_environment(env);
+                continue;
+            }
+        }
+
         mpc_result_t my_own_lisp_parse_result;
         if (mpc_parse("<stdin>", input_buff, my_own_lisp, &my_own_lisp_parse_result)) {
             lisp_value_t* lisp_value = parse_lisp_value(my_own_lisp_parse_result.output);
@@ -159,5 +172,6 @@ int main(int argc, char** argv) {
     }
 
     mpc_cleanup(7, number, decimal, symbol, sexpr, expr, qexpr, my_own_lisp);
+    lisp_environment_delete(env);
     return 0;
 }
