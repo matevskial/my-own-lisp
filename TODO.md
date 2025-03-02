@@ -23,19 +23,8 @@ instead return early, or return in the end of the function as possible
 * [] - We added VAL_BUILTIN_FUN instead VAL_FUN(just to avoid function pointers). 
 If needed by future chapters, add VAL_FUN anyway
 * [] - Try to use switch of lisp_value type in code? And see if error for not covering cases can be configured
-  * example in function print_lisp_value 
-* [] - Enhance error handling
-  * for example, in builtin_def
-  * examples:
-    * Error: Function '+' passed incorrect type for argument 1. Got Q-Expression, Expected Number.
-    * Error: Function 'head' passed incorrect number of arguments. Got 2, Expected 1.
-* [] - Implement bonus points of chapter 11
-  * › Write a function for printing out all the named values in an environment.
-    * (my own bonus) make the function available only in debug mode
-  * › Create an exit function for stopping the prompt and exiting.
-* [] - Consider creating static chars that represent the builtin function symbols
-* [] - Refactor: add val type argument in function lisp_value_new
-* 
+  * example in function print_lisp_value
+
 ## done
 
 * [v] - Use #define to introduce custom definitions for win and unix,mac to not duplicate if in input_reader.c
@@ -69,3 +58,13 @@ If needed by future chapters, add VAL_FUN anyway
   * after implementing, compare with chapter and implement bonus points
 * [v] - Consider replacing with macros duplicating code in beginning of builtin_len, builtin_cons, builtin_init
   that check if they operate with valid arguments
+* [v] - Refactor: add val type argument in function lisp_value_new
+* [v] - Enhance error handling
+  * for example, in builtin_def
+  * examples:
+    * Error: Function '+' passed incorrect type for argument 1. Got Q-Expression, Expected Number.
+    * Error: Function 'head' passed incorrect number of arguments. Got 2, Expected 1.
+* [v] - Consider creating static chars that represent the builtin function symbols
+* [v] - Implement bonus points of chapter 11
+  * › Write a function for printing out all the named values in an environment.
+  * › Create an exit function for stopping the prompt and exiting.
