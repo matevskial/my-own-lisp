@@ -8,6 +8,24 @@
 
 static int MAX_ERROR_MESSAGE_BUFF_SIZE = 512;
 
+static char* BUILTIN_PLUS = "+";
+static char* BUILTIN_MINUS = "-";
+static char* BUILTIN_MULTIPLY = "*";
+static char* BUILTIN_DIVIDE = "/";
+static char* BUILTIN_MOD = "%";
+static char* BUILTIN_POW = "^";
+static char* BUILTIN_MIN = "min";
+static char* BUILTIN_MAX = "max";
+static char* BUILTIN_LIST = "list";
+static char* BUILTIN_HEAD = "head";
+static char* BUILTIN_TAIL = "tail";
+static char* BUILTIN_JOIN = "join";
+static char* BUILTIN_EVAL = "eval";
+static char* BUILTIN_CONS = "cons";
+static char* BUILTIN_LEN = "len";
+static char* BUILTIN_INIT = "init";
+static char* BUILTIN_DEF = "def";
+
 typedef lisp_value_t lisp_value_t;
 
 static lisp_value_t null_lisp_value = {
@@ -503,29 +521,29 @@ lisp_value_t* execute_binary_operation(char* operation, lisp_value_t* first_oper
         return second_operand;
     }
 
-    if (strcmp(operation, "+") == 0) {
+    if (strcmp(operation, BUILTIN_PLUS) == 0) {
         return add_lisp_values(first_operand, second_operand);
     }
-    if (strcmp(operation, "-") == 0) {
+    if (strcmp(operation, BUILTIN_MINUS) == 0) {
         return subtract_lisp_values(first_operand, second_operand);
     }
-    if (strcmp(operation, "*") == 0) {
+    if (strcmp(operation, BUILTIN_MULTIPLY) == 0) {
         return multiply_lisp_values(first_operand, second_operand);
     }
-    if (strcmp(operation, "/") == 0) {
+    if (strcmp(operation, BUILTIN_DIVIDE) == 0) {
         return divide_lisp_values(first_operand, second_operand);
     }
-    if (strcmp(operation, "%") == 0) {
+    if (strcmp(operation, BUILTIN_MOD) == 0) {
         return division_remainder_lisp_value(first_operand, second_operand);
     }
-    if (strcmp(operation, "^") == 0) {
+    if (strcmp(operation, BUILTIN_POW) == 0) {
         return pow_lisp_value(first_operand, second_operand);
     }
-    if (strcmp(operation, "min") == 0) {
+    if (strcmp(operation, BUILTIN_MIN) == 0) {
         lisp_value_t* min = min_lisp_value(first_operand, second_operand);
         return min;
     }
-    if (strcmp(operation, "max") == 0) {
+    if (strcmp(operation, BUILTIN_MAX) == 0) {
         lisp_value_t* max = max_lisp_value(first_operand, second_operand);
         return max;
     }
@@ -705,10 +723,10 @@ lisp_value_t* numeric_op_number(char* operation, long value1, long value2) {
     if (operation[0] == '^') {
         return lisp_value_number_new((long) pow((double) value1, (double) value2));
     }
-    if (strcmp(operation, "min") == 0) {
+    if (strcmp(operation, BUILTIN_MIN) == 0) {
         return lisp_value_number_new(value1 < value2 ? value1 : value2);
     }
-    if (strcmp(operation, "max") == 0) {
+    if (strcmp(operation, BUILTIN_MAX) == 0) {
         return lisp_value_number_new(value1 > value2 ? value1 : value2);
     }
     return lisp_value_error_new(ERR_INVALID_OPERATOR_MESSAGE);
@@ -736,10 +754,10 @@ lisp_value_t* numeric_op_decimal(char* operation, double value1, double value2) 
     if (operation[0] == '^') {
         return lisp_value_decimal_new(pow(value1, value2));
     }
-    if (strcmp(operation, "min") == 0) {
+    if (strcmp(operation, BUILTIN_MIN) == 0) {
         return lisp_value_decimal_new(value1 < value2 ? value1 : value2);
     }
-    if (strcmp(operation, "max") == 0) {
+    if (strcmp(operation, BUILTIN_MAX) == 0) {
         return lisp_value_decimal_new(value1 > value2 ? value1 : value2);
     }
     return lisp_value_error_new(ERR_INVALID_OPERATOR_MESSAGE);
@@ -761,7 +779,7 @@ lisp_value_t* numeric_op_decimal(char* operation, double value1, double value2) 
     } while (0);
 
 lisp_value_t* builtin_head(lisp_value_t* arguments) {
-    ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments, "head");
+    ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments, BUILTIN_HEAD);
 
     lisp_value_t* qexpr = lisp_value_pop_child(arguments, 0);
 
@@ -780,7 +798,7 @@ lisp_value_t* builtin_head(lisp_value_t* arguments) {
 }
 
 lisp_value_t* builtin_tail(lisp_value_t* arguments) {
-    ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments, "tail");
+    ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments, BUILTIN_TAIL);
 
     lisp_value_t* qexpr = lisp_value_pop_child(arguments, 0);
 
@@ -798,7 +816,7 @@ lisp_value_t* builtin_tail(lisp_value_t* arguments) {
 lisp_value_t* builtin_join(lisp_value_t* arguments) {
     for (int i = 0; i < arguments->count; i++) {
         if (arguments->values[i]->value_type != VAL_QEXPR) {
-            lisp_value_t* error = lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE_TEMPLATE, i + 1, "join", get_value_type_string(VAL_QEXPR), get_value_type_string(arguments->values[i]->value_type));
+            lisp_value_t* error = lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE_TEMPLATE, i + 1, BUILTIN_JOIN, get_value_type_string(VAL_QEXPR), get_value_type_string(arguments->values[i]->value_type));
             lisp_value_delete(arguments);
             return error;
         }
@@ -823,7 +841,7 @@ lisp_value_t* builtin_join(lisp_value_t* arguments) {
 }
 
 lisp_value_t* builtin_eval(lisp_environment_t* env, lisp_value_t* arguments) {
-    ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments, "eval");
+    ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments, BUILTIN_EVAL);
     lisp_value_t* qexpr = lisp_value_pop_child(arguments, 0);
     qexpr->value_type = VAL_SEXPR;
     lisp_value_t* result = evaluate_lisp_value_destructive(env, qexpr);
@@ -833,7 +851,7 @@ lisp_value_t* builtin_eval(lisp_environment_t* env, lisp_value_t* arguments) {
 
 lisp_value_t* builtin_cons(lisp_value_t* arguments) {
     if (arguments->count != 2) {
-        lisp_value_t* error = lisp_value_error_new(ERR_INVALID_NUMBER_OF_ARGUMENTS_MESSAGE_TEMPLATE, "cons", 2, arguments->count);
+        lisp_value_t* error = lisp_value_error_new(ERR_INVALID_NUMBER_OF_ARGUMENTS_MESSAGE_TEMPLATE, BUILTIN_CONS, 2, arguments->count);
         lisp_value_delete(arguments);
         return error;
     }
@@ -842,7 +860,7 @@ lisp_value_t* builtin_cons(lisp_value_t* arguments) {
     lisp_value_t* existing_qexpr = lisp_value_pop_child(arguments, 0);
 
     if (existing_qexpr->value_type != VAL_QEXPR) {
-        lisp_value_t* error = lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE_TEMPLATE, 2, "cons", get_value_type_string(VAL_QEXPR), get_value_type_string(existing_qexpr->value_type));
+        lisp_value_t* error = lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE_TEMPLATE, 2, BUILTIN_CONS, get_value_type_string(VAL_QEXPR), get_value_type_string(existing_qexpr->value_type));
         lisp_value_delete(existing_qexpr);
         lisp_value_delete(value_to_cons);
         lisp_value_delete(arguments);
@@ -876,7 +894,7 @@ lisp_value_t* builtin_cons(lisp_value_t* arguments) {
 }
 
 lisp_value_t* builtin_len(lisp_value_t* arguments) {
-    ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments, "len");
+    ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments, BUILTIN_LEN);
     lisp_value_t* qexpr = lisp_value_pop_child(arguments, 0);
     lisp_value_t* result = lisp_value_number_new(qexpr->count);
     lisp_value_delete(arguments);
@@ -884,7 +902,7 @@ lisp_value_t* builtin_len(lisp_value_t* arguments) {
 }
 
 lisp_value_t* builtin_init(lisp_value_t* arguments) {
-    ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments, "init");
+    ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments, BUILTIN_INIT);
     lisp_value_t* qexpr = lisp_value_pop_child(arguments, 0);
     if (qexpr->count < 1) {
         return qexpr;
@@ -897,7 +915,7 @@ lisp_value_t* builtin_init(lisp_value_t* arguments) {
 lisp_value_t* builtin_def(lisp_environment_t* env, lisp_value_t* arguments) {
     lisp_value_t* qexpr_of_symbols = lisp_value_pop_child(arguments, 0);
     if (qexpr_of_symbols->value_type != VAL_QEXPR) {
-        lisp_value_t* error = lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE_TEMPLATE, 1, "def", get_value_type_string(VAL_QEXPR), get_value_type_string(qexpr_of_symbols->value_type));
+        lisp_value_t* error = lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE_TEMPLATE, 1, BUILTIN_DEF, get_value_type_string(VAL_QEXPR), get_value_type_string(qexpr_of_symbols->value_type));
         lisp_value_delete(qexpr_of_symbols);
         lisp_value_delete(arguments);
         return error;
@@ -951,7 +969,7 @@ lisp_value_t* builtin_operation_for_numeric_arguments(char* operation, lisp_valu
         }
 
         // min and max should return non-error if all numeric values are only of one type
-        if (strcmp(operation, "min") == 0 || strcmp(operation, "max") == 0) {
+        if (strcmp(operation, BUILTIN_MIN) == 0 || strcmp(operation, BUILTIN_MAX) == 0) {
             if ((is_decimal && arguments->values[i]->value_type == VAL_NUMBER)|| (!is_decimal && arguments->values[i]->value_type == VAL_DECIMAL)) {
                 lisp_value_delete(arguments);
                 return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE);
@@ -1013,61 +1031,61 @@ lisp_value_t* builtin_operation(lisp_environment_t* env, lisp_value_t* value) {
     }
 
     if (strpbrk(operation->value_symbol, "+-*/^%") != NULL
-        || strcmp(operation->value_symbol, "min") == 0 || strcmp(operation->value_symbol, "max") == 0) {
+        || strcmp(operation->value_symbol, BUILTIN_MIN) == 0 || strcmp(operation->value_symbol, BUILTIN_MAX) == 0) {
         lisp_value_t* result = builtin_operation_for_numeric_arguments(operation->value_symbol, value);
         lisp_value_delete(operation);
         return result;
     }
 
-    if (strcmp(operation->value_symbol, "list") == 0) {
+    if (strcmp(operation->value_symbol, BUILTIN_LIST) == 0) {
         value->value_type = VAL_QEXPR;
         lisp_value_delete(operation);
         return value;
     }
 
-    if (strcmp(operation->value_symbol, "head") == 0) {
+    if (strcmp(operation->value_symbol, BUILTIN_HEAD) == 0) {
         lisp_value_t* result = builtin_head(value);
         lisp_value_delete(operation);
         return result;
     }
 
-    if (strcmp(operation->value_symbol, "tail") == 0) {
+    if (strcmp(operation->value_symbol, BUILTIN_TAIL) == 0) {
         lisp_value_t* result = builtin_tail(value);
         lisp_value_delete(operation);
         return result;
     }
 
-    if (strcmp(operation->value_symbol, "join") == 0) {
+    if (strcmp(operation->value_symbol, BUILTIN_JOIN) == 0) {
         lisp_value_t* result = builtin_join(value);
         lisp_value_delete(operation);
         return result;
     }
 
-    if (strcmp(operation->value_symbol, "eval") == 0) {
+    if (strcmp(operation->value_symbol, BUILTIN_EVAL) == 0) {
         lisp_value_t* result = builtin_eval(env, value);
         lisp_value_delete(operation);
         return result;
     }
 
-    if (strcmp(operation->value_symbol, "cons") == 0) {
+    if (strcmp(operation->value_symbol, BUILTIN_CONS) == 0) {
         lisp_value_t* result = builtin_cons(value);
         lisp_value_delete(operation);
         return result;
     }
 
-    if (strcmp(operation->value_symbol, "len") == 0) {
+    if (strcmp(operation->value_symbol, BUILTIN_LEN) == 0) {
         lisp_value_t* result = builtin_len(value);
         lisp_value_delete(operation);
         return result;
     }
 
-    if (strcmp(operation->value_symbol, "init") == 0) {
+    if (strcmp(operation->value_symbol, BUILTIN_INIT) == 0) {
         lisp_value_t* result = builtin_init(value);
         lisp_value_delete(operation);
         return result;
     }
 
-    if (strcmp(operation->value_symbol, "def") == 0) {
+    if (strcmp(operation->value_symbol, BUILTIN_DEF) == 0) {
         lisp_value_t* result = builtin_def(env, value);
         lisp_value_delete(operation);
         return result;
@@ -1265,23 +1283,23 @@ bool lisp_environment_setup_builtin_functions(lisp_environment_t *env) {
     }
 
     bool ok = true;
-    ok = ok && lisp_environment_setup_builtin_function(env, "+");
-    ok = ok && lisp_environment_setup_builtin_function(env, "-");
-    ok = ok && lisp_environment_setup_builtin_function(env, "*");
-    ok = ok && lisp_environment_setup_builtin_function(env, "/");
-    ok = ok && lisp_environment_setup_builtin_function(env, "%");
-    ok = ok && lisp_environment_setup_builtin_function(env, "^");
-    ok = ok && lisp_environment_setup_builtin_function(env, "min");
-    ok = ok && lisp_environment_setup_builtin_function(env, "max");
-    ok = ok && lisp_environment_setup_builtin_function(env, "list");
-    ok = ok && lisp_environment_setup_builtin_function(env, "head");
-    ok = ok && lisp_environment_setup_builtin_function(env, "tail");
-    ok = ok && lisp_environment_setup_builtin_function(env, "join");
-    ok = ok && lisp_environment_setup_builtin_function(env, "eval");
-    ok = ok && lisp_environment_setup_builtin_function(env, "cons");
-    ok = ok && lisp_environment_setup_builtin_function(env, "len");
-    ok = ok && lisp_environment_setup_builtin_function(env, "init");
-    ok = ok && lisp_environment_setup_builtin_function(env, "def");
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_PLUS);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_MINUS);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_MULTIPLY);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_DIVIDE);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_MOD);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_POW);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_MIN);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_MAX);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_LIST);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_HEAD);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_TAIL);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_JOIN);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_EVAL);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_CONS);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_LEN);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_INIT);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_DEF);
 
     return ok;
 }
