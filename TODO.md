@@ -17,13 +17,11 @@
 * [] - Use hashmap implementation for lisp_env* get, etc
   * either own implementation or stb_ds
 * [] - Consider using function lisp_value_copy in the non-destructive evaluation
-* [] - Consider adding typedefs used for helping with circular dependencies in interpreter.h instead intepreter.c?
 * [] - See if some  functions can be refactored to not return in the middle of the function body, 
 instead return early, or return in the end of the function as possible
 * [] - We added VAL_BUILTIN_FUN instead VAL_FUN(just to avoid function pointers). 
 If needed by future chapters, add VAL_FUN anyway
-* [] - Try to use switch of lisp_value type in code? And see if error for not covering cases can be configured
-  * example in function print_lisp_value
+* [] - Test whether configuration for treating switch warnings as error works when compiling on Windows
 
 ## done
 
@@ -68,3 +66,6 @@ If needed by future chapters, add VAL_FUN anyway
 * [v] - Implement bonus points of chapter 11
   * › Write a function for printing out all the named values in an environment.
   * › Create an exit function for stopping the prompt and exiting.
+* [v] - Consider adding typedefs used for helping with circular dependencies in interpreter.h instead intepreter.c?
+  * The exiting typedef in interpreter.c was uneccessary and thus removed
+* [v] - Try to use switch of lisp_value type in print_lisp_value? And see if error for not covering cases can be configured
