@@ -968,7 +968,8 @@ lisp_value_t* builtin_operation_for_numeric_arguments(char* operation, lisp_valu
     double result_decimal = arguments->values[0]->value_type == VAL_NUMBER
         ? (double) arguments->values[0]->value_number
         : arguments->values[0]->value_decimal;
-    bool is_decimal = arguments->values[0]->value_type == VAL_DECIMAL ? true : false;
+    bool is_prev_decimal = arguments->values[0]->value_type == VAL_DECIMAL ? true : false;
+    bool should_return_decimal = arguments->values[0]->value_type == VAL_DECIMAL ? true : false;
 
     for (int i = 0; i < arguments->count; i++) {
         if (arguments->values[i]->value_type != VAL_NUMBER && arguments->values[i]->value_type != VAL_DECIMAL) {
@@ -979,31 +980,33 @@ lisp_value_t* builtin_operation_for_numeric_arguments(char* operation, lisp_valu
 
         // min and max should return non-error if all numeric values are only of one type
         if (strcmp(operation, BUILTIN_MIN) == 0 || strcmp(operation, BUILTIN_MAX) == 0) {
-            if ((is_decimal && arguments->values[i]->value_type == VAL_NUMBER)|| (!is_decimal && arguments->values[i]->value_type == VAL_DECIMAL)) {
+            if ((is_prev_decimal && arguments->values[i]->value_type == VAL_NUMBER)|| (!is_prev_decimal && arguments->values[i]->value_type == VAL_DECIMAL)) {
                 lisp_value_delete(arguments);
                 return lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE);
             }
         }
 
-        is_decimal = arguments->values[i]->value_type == VAL_DECIMAL ? true : false;
+        is_prev_decimal = arguments->values[i]->value_type == VAL_DECIMAL ? true : false;
+        if (arguments->values[i]->value_type == VAL_DECIMAL) {
+            should_return_decimal = true;
+        }
 
         if (i == 0) {
             continue;
         }
 
-        lisp_value_t* r = numeric_op_number(operation, result_number, arguments->values[i]->value_type == VAL_NUMBER
-        ? arguments->values[i]->value_number
-        : (long) arguments->values[i]->value_decimal);
-        if (!is_decimal && is_lisp_value_error(r)) {
+        long number = arguments->values[i]->value_type == VAL_NUMBER ? arguments->values[i]->value_number : (long) arguments->values[i]->value_decimal;
+        double number_decimal = arguments->values[i]->value_type == VAL_DECIMAL ? arguments->values[i]->value_decimal : (double) arguments->values[i]->value_number;
+
+        lisp_value_t* r = numeric_op_number(operation, result_number, number);
+        if (!should_return_decimal && is_lisp_value_error(r)) {
             lisp_value_delete(arguments);
             return r;
         }
         result_number = r->value_number;
 
-        lisp_value_t* r1 = numeric_op_decimal(operation, result_decimal, arguments->values[i]->value_type == VAL_NUMBER
-        ? (double) arguments->values[i]->value_number
-        : arguments->values[i]->value_decimal);
-        if (is_decimal && is_lisp_value_error(r1)) {
+        lisp_value_t* r1 = numeric_op_decimal(operation, result_decimal, number_decimal);
+        if (should_return_decimal && is_lisp_value_error(r1)) {
             lisp_value_delete(r);
             lisp_value_delete(arguments);
             return r1;
@@ -1020,7 +1023,7 @@ lisp_value_t* builtin_operation_for_numeric_arguments(char* operation, lisp_valu
     }
 
     lisp_value_delete(arguments);
-    if (is_decimal) {
+    if (should_return_decimal) {
         return lisp_value_decimal_new(result_decimal);
     }
     return lisp_value_number_new(result_number);
