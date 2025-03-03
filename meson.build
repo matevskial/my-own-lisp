@@ -33,11 +33,15 @@ mpcDep = declare_dependency(
 dependencies_for_target_unix_mac += [editlineDep, linuxMathDep, mpcDep]
 dependencies_for_target_windows += [mpcDep]
 
+c_args_unix_mac = ['-Werror=switch']
+c_args_windows = ['-Werror=switch']
+
 my_own_lisp_unix_mac = executable(
         'my_own_lisp_unix_mac',
         sources,
         include_directories : includes,
         dependencies : dependencies_for_target_unix_mac,
+        c_args : c_args_unix_mac,
         install : true)
 
 my_own_lisp_unix_mac_read_line_stdin_with_stdio = executable(
@@ -45,7 +49,7 @@ my_own_lisp_unix_mac_read_line_stdin_with_stdio = executable(
         sources,
         include_directories : includes,
         dependencies : dependencies_for_target_unix_mac,
-        c_args: ['-DREAD_LINE_STDIN_WITH_STDIO'],
+        c_args : c_args_unix_mac + ['-DREAD_LINE_STDIN_WITH_STDIO'],
         install : true)
 
 my_own_lisp_windows = executable(
@@ -53,6 +57,7 @@ my_own_lisp_windows = executable(
         sources,
         include_directories : includes,
         dependencies : dependencies_for_target_windows,
+        c_args : c_args_windows,
         install : true)
 
 test('test_unix_mac', my_own_lisp_unix_mac)
