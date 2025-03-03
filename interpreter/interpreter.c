@@ -342,22 +342,28 @@ void print_lisp_value(lisp_value_t* lisp_value) {
         return;
     }
 
-    if (is_lisp_value_error(lisp_value)) {
-        printf("error: %s", lisp_value->error_message);
-    } else {
-        if (lisp_value->value_type == VAL_NUMBER) {
+    switch (lisp_value->value_type) {
+        case VAL_ERR:
+            printf("error: %s", lisp_value->error_message);
+        case VAL_NUMBER:
             printf("%ld", lisp_value->value_number);
-        } else if (lisp_value->value_type == VAL_DECIMAL) {
+        break;
+        case VAL_DECIMAL:
             printf("%f", lisp_value->value_decimal);
-        } else if (lisp_value->value_type == VAL_SYMBOL) {
+        break;
+        case VAL_SYMBOL:
             printf("symbol: %s", lisp_value->value_symbol);
-        } else if (lisp_value->value_type == VAL_SEXPR || lisp_value->value_type == VAL_ROOT) {
+        break;
+        case VAL_SEXPR:
+        case VAL_ROOT:
             print_lisp_value_with_children(lisp_value, '(', ')');
-        } else if (lisp_value->value_type == VAL_QEXPR) {
+        break;
+        case VAL_QEXPR:
             print_lisp_value_with_children(lisp_value, '{', '}');
-        } else if (lisp_value->value_type == VAL_BUILTIN_FUN) {
+        break;
+        case VAL_BUILTIN_FUN:
             printf("builtin: %s", lisp_value->value_symbol);
-        }
+        break;
     }
 }
 
