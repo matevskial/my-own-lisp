@@ -26,8 +26,6 @@ static char* BUILTIN_LEN = "len";
 static char* BUILTIN_INIT = "init";
 static char* BUILTIN_DEF = "def";
 
-typedef lisp_value_t lisp_value_t;
-
 static lisp_value_t null_lisp_value = {
     .value_type = 0,
     .error_message = NULL,
