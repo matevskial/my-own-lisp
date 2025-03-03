@@ -16,6 +16,7 @@
 * [] - Consider using github.com/tsoding/arena
 * [] - Use hashmap implementation for lisp_env* get, etc
   * either own implementation or stb_ds
+  * check this video too https://www.youtube.com/watch?v=DMQ_HcNSOAI
 * [] - Consider using function lisp_value_copy in the non-destructive evaluation
 * [] - See if some  functions can be refactored to not return in the middle of the function body, 
 instead return early, or return in the end of the function as possible
