@@ -1,18 +1,6 @@
 #pragma once
 #include <stddef.h>
 
-static char* ERR_INVALID_OPERATOR_MESSAGE = "Invalid Operator";
-static char* ERR_DIV_ZERO_MESSAGE = "Division by zero";
-static char* ERR_BAD_NUMERIC_VALUE_MESSAGE = "Bad numeric value";
-static char* ERR_INCOMPATIBLE_TYPES_MESSAGE = "Incompatible types for operation";
-static char* ERR_UNBOUND_SYMBOL_MESSAGE = "Unbound symbol";
-static char* ERR_INCOMPATIBLE_TYPES_MESSAGE_TEMPLATE = "Incompatible type for argument %d of %s: expected %s, got %s";
-static char* ERR_BUILTIN_DEF_INVALID_VALUE_COUNT_MESSAGE_TEMPLATE = "Invalid number of values for defining variables: expected %d, got %d";
-static char* ERR_BUILTIN_DEF_INVALID_TYPE_FOR_VARIABLE_NAME_MESSAGE_TEMPLATE = "Invalid type for variable name: expected %s, got %s";
-static char* ERR_INVALID_NUMBER_OF_ARGUMENTS_MESSAGE_TEMPLATE = "Invalid number of arguments for %s: expected: %d, got %d";
-static char* ERR_AT_LEAST_ONE_ARGUMENT_EXPECTED_MESSAGE_TEMPLATE = "Expected at least one argument for %s";
-static char* ERR_NOT_ALLOWED_TO_REDEFINE_BUILTIN_FUN_MESSAGE_TEMPLATE = "Builtin %s not allowed to be redefined";
-
 typedef enum {
     VAL_ERR,
     VAL_NUMBER,
@@ -55,6 +43,7 @@ lisp_value_t* lisp_value_builtin_fun_new(char* symbol);
 lisp_value_t* lisp_value_error_new(char* error_message_template, ...);
 lisp_value_t* lisp_value_copy(lisp_value_t* value);
 lisp_value_t* get_null_lisp_value();
+lisp_value_t* get_lisp_value_error_bad_numeric_value();
 bool append_lisp_value(lisp_value_t* value, lisp_value_t* child_to_append);
 void lisp_value_set_child(lisp_value_t* value, int index, lisp_value_t* child);
 lisp_value_t* lisp_value_pop_child(lisp_value_t * value, int index);

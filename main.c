@@ -57,7 +57,7 @@ lisp_value_t* parse_lisp_value(mpc_ast_t* ast) {
         errno = 0;
         long number = strtol(ast->contents, NULL, 10);
         if (errno != 0) {
-            return lisp_value_error_new(ERR_BAD_NUMERIC_VALUE_MESSAGE);
+            return get_lisp_value_error_bad_numeric_value();
         }
         return lisp_value_number_new(number);
     }
@@ -65,7 +65,7 @@ lisp_value_t* parse_lisp_value(mpc_ast_t* ast) {
         errno = 0;
         double number_decimal = strtod(ast->contents, NULL);
         if (errno != 0) {
-            return lisp_value_error_new(ERR_BAD_NUMERIC_VALUE_MESSAGE);
+            return get_lisp_value_error_bad_numeric_value();
         }
         return lisp_value_decimal_new(number_decimal);
     }
