@@ -345,6 +345,7 @@ void print_lisp_value(lisp_value_t* lisp_value) {
     switch (lisp_value->value_type) {
         case VAL_ERR:
             printf("error: %s", lisp_value->error_message);
+        break;
         case VAL_NUMBER:
             printf("%ld", lisp_value->value_number);
         break;
@@ -1190,13 +1191,13 @@ void lisp_environment_delete(lisp_environment_t *env) {
     }
 
     if (env->symbols != NULL) {
-        for (int i = 0; i < env->count; i++) {
+        for (size_t i = 0; i < env->count; i++) {
             free(env->symbols[i]);
         }
     }
 
     if (env->values != NULL) {
-        for (int i = 0; i < env->count; i++) {
+        for (size_t i = 0; i < env->count; i++) {
             lisp_value_delete(env->values[i]);
         }
     }
@@ -1214,7 +1215,7 @@ bool lisp_environment_set(lisp_environment_t* env, lisp_value_t *symbol, lisp_va
         return false;
     }
 
-    for (int i = 0; i < env->count; i++) {
+    for (size_t i = 0; i < env->count; i++) {
         if (strcmp(symbol->value_symbol, env->symbols[i]) == 0) {
             lisp_value_delete(env->values[i]);
             env->values[i] = lisp_value_copy(value);
@@ -1266,7 +1267,7 @@ lisp_value_t* lisp_environment_get(lisp_environment_t* env, lisp_value_t *symbol
     }
 
     lisp_value_t* result = &null_lisp_value;
-    for (int i = 0; i < env->count; i++) {
+    for (size_t i = 0; i < env->count; i++) {
         if (strcmp(symbol->value_symbol, env->symbols[i]) == 0) {
             result = lisp_value_copy(env->values[i]);
             break;
@@ -1336,7 +1337,7 @@ bool lisp_environment_setup_builtin_functions(lisp_environment_t *env) {
 
 void println_lisp_environment(lisp_environment_t* env) {
     puts("Lisp environment:");
-    for (int i = 0; i < env->count; i++) {
+    for (size_t i = 0; i < env->count; i++) {
         printf("%s\t", env->symbols[i]);
         print_lisp_value(env->values[i]);
         putchar('\n');

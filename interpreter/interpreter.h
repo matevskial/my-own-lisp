@@ -1,12 +1,10 @@
 #pragma once
 #include <stddef.h>
 
-static char* UNKNOWN_ERROR_MESSAGE = "Unknown error";
 static char* ERR_INVALID_OPERATOR_MESSAGE = "Invalid Operator";
 static char* ERR_DIV_ZERO_MESSAGE = "Division by zero";
 static char* ERR_BAD_NUMERIC_VALUE_MESSAGE = "Bad numeric value";
 static char* ERR_INCOMPATIBLE_TYPES_MESSAGE = "Incompatible types for operation";
-static char* ERR_BAD_SEXPR_MESSAGE = "Bad S-expression";
 static char* ERR_UNBOUND_SYMBOL_MESSAGE = "Unbound symbol";
 static char* ERR_INCOMPATIBLE_TYPES_MESSAGE_TEMPLATE = "Incompatible type for argument %d of %s: expected %s, got %s";
 static char* ERR_BUILTIN_DEF_INVALID_VALUE_COUNT_MESSAGE_TEMPLATE = "Invalid number of values for defining variables: expected %d, got %d";

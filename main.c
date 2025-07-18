@@ -15,6 +15,7 @@ static char *prompt = "my-own-lisp> ";
 
 // this is a language with bonus marks additions
 // it is in a separate variable because some of the bonus mark probably won't be used in the language my-own-lisp
+// it is left here for reference
 static char *chapter_6_bonus_mark_language =
     "                                                                         \
         number          : /-?[0-9]+/ ;                                        \
@@ -104,7 +105,7 @@ lisp_value_t* parse_lisp_value(mpc_ast_t* ast) {
     return lisp_value;
 }
 
-int main(int argc, char** argv) {
+int main() {
     mpc_parser_t* number = mpc_new("number");
     mpc_parser_t* decimal = mpc_new("decimal");
     mpc_parser_t* symbol = mpc_new("symbol");
