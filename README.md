@@ -7,6 +7,8 @@
 
 ## Instructions for linux fedora
 
+* Install meson
+  * `pip3 install --user meson`
 * Install build-tools
 * Install libedit-devel
   * `sudo dnf install libedit-devel`
