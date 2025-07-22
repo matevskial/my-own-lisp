@@ -30,7 +30,8 @@ mpcDep = declare_dependency(
         sources : mpc_sources
 )
 
-dependencies_for_target_unix_mac += [editlineDep, linuxMathDep, mpcDep]
+dependencies_for_target_unix_mac += [linuxMathDep, mpcDep]
+dependencies_for_target_unix_mac_with_editlineDep = dependencies_for_target_unix_mac + [editlineDep]
 dependencies_for_target_windows += [mpcDep]
 
 c_args_unix_mac = ['-Werror=switch']
@@ -40,7 +41,7 @@ my_own_lisp_unix_mac = executable(
         'my_own_lisp_unix_mac',
         sources,
         include_directories : includes,
-        dependencies : dependencies_for_target_unix_mac,
+        dependencies : dependencies_for_target_unix_mac_with_editlineDep,
         c_args : c_args_unix_mac,
         install : true)
 

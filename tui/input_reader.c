@@ -10,8 +10,11 @@
 #endif
 
 #if defined(_UNIX_STYLE_OS)
-#include <editline/readline.h>
 #include <string.h>
+#endif
+
+#if defined(_UNIX_STYLE_OS_EAD_LINE_STDIN_WITH_EDITLINE)
+#include <editline/readline.h>
 #endif
 
 size_t read_line_stdin_scanf(const char *prompt, char *buff, size_t size) {
@@ -103,7 +106,7 @@ size_t read_line_stdin_internal(const char *prompt, char *buff, size_t size) {
 #endif
 
 void add_history_internal(const char *buff) {
-#if defined(_UNIX_STYLE_OS)
+#if defined(_UNIX_STYLE_OS_EAD_LINE_STDIN_WITH_EDITLINE)
     add_history(buff);
 #endif
 }
