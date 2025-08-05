@@ -120,7 +120,7 @@ int main() {
        number, decimal, symbol, sexpr, expr, qexpr, my_own_lisp
     );
 
-    lisp_environment_t* env = lisp_environment_new();
+    lisp_environment_t* env = lisp_environment_new_root();
     bool env_setup_successful = lisp_environment_setup_builtin_functions(env);
 
     if (!env_setup_successful) {
@@ -164,6 +164,7 @@ int main() {
             putchar('\n');
             // lisp_value_delete(lisp_value);
             // lisp_eval_result_delete(eval_result);
+            // TODO: handle the case where eval_result_1 is NULL for some reason
             lisp_eval_result_delete(eval_result_1);
             mpc_ast_delete(my_own_lisp_parse_result.output);
         } else {
