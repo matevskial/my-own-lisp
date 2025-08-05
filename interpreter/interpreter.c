@@ -37,6 +37,9 @@ static char* BUILTIN_CONS = "cons";
 static char* BUILTIN_LEN = "len";
 static char* BUILTIN_INIT = "init";
 static char* BUILTIN_DEF = "def";
+static char* BUILTIN_LOCAL_DEF = "=";
+static char* BUILTIN_CREATE_FUNCTION = "\\";
+static char* BUILTIN_DEF_FUN = "fun";
 
 static lisp_value_t null_lisp_value = {
     .value_type = 0,
@@ -50,7 +53,14 @@ static lisp_value_t null_lisp_value = {
 
 static lisp_environment_t null_lisp_environment = {
     .symbols = NULL,
-    .values = NULL
+    .values = NULL,
+    .parent_environment = NULL
+};
+
+static lisp_environment_t lisp_environment_referenced_by_root_environment = {
+    .symbols = NULL,
+    .values = NULL,
+    .parent_environment = NULL
 };
 
 lisp_value_t* lisp_value_new(lisp_value_type_t value_type) {
@@ -63,6 +73,7 @@ lisp_value_t* lisp_value_new(lisp_value_type_t value_type) {
     lisp_value->value_number = 0;
     lisp_value->value_decimal = 0;
     lisp_value->value_symbol = NULL;
+    lisp_value->value_userdefined_fun = NULL;
     lisp_value->count = 0;
     lisp_value->values = NULL;
     return lisp_value;
@@ -153,14 +164,24 @@ void lisp_value_delete(lisp_value_t* lisp_value) {
     }
 
     if (lisp_value->value_type == VAL_SEXPR || lisp_value->value_type == VAL_ROOT || lisp_value->value_type == VAL_QEXPR) {
-        for (int i = 0; i < lisp_value->count; i++) {
-            lisp_value_delete(lisp_value->values[i]);
+        if (lisp_value->values != NULL) {
+            for (int i = 0; i < lisp_value->count; i++) {
+                lisp_value_delete(lisp_value->values[i]);
+            }
         }
         free(lisp_value->values);
     } else if (lisp_value->value_type == VAL_SYMBOL || lisp_value->value_type == VAL_BUILTIN_FUN) {
         free(lisp_value->value_symbol);
     } else if (lisp_value->value_type == VAL_ERR) {
         free(lisp_value->error_message);
+    } else if (lisp_value->value_type == VAL_USERDEFINED_FUN) {
+        if (lisp_value->value_userdefined_fun != NULL) {
+            lisp_value_delete(lisp_value->value_userdefined_fun->formal_arguments);
+            lisp_value_delete(lisp_value->value_userdefined_fun->varargs_symbol);
+            lisp_value_delete(lisp_value->value_userdefined_fun->body);
+            lisp_environment_delete(lisp_value->value_userdefined_fun->local_env);
+        }
+        free(lisp_value->value_userdefined_fun);
     }
     free(lisp_value);
 }
@@ -171,6 +192,70 @@ lisp_value_t * lisp_value_builtin_fun_new(char *symbol) {
         return &null_lisp_value;
     }
     lisp_value->value_type = VAL_BUILTIN_FUN;
+    return lisp_value;
+}
+
+lisp_value_t* lisp_value_userdefined_fun_new(lisp_environment_t* environment, lisp_value_t* formal_arguments, lisp_value_t* body) {
+    if (formal_arguments->value_type != VAL_QEXPR || body->value_type != VAL_QEXPR) {
+        lisp_value_delete(formal_arguments);
+        lisp_value_delete(body);
+        return lisp_value_error_new("error defining function");
+    }
+
+    bool are_all_formal_arguments_symbols = true;
+    bool invalid_varargs_definiton = false;
+    // TODO: try to use size_t where possible in situations like this??
+    long varargs_signifier_index = -1;
+    for (long i = 0; i < formal_arguments->count; i++) {
+        if (formal_arguments->values[i]->value_type != VAL_SYMBOL) {
+            are_all_formal_arguments_symbols = false;
+            break;
+        }
+        if (strcmp(formal_arguments->values[i]->value_symbol, "&") == 0) {
+            if (varargs_signifier_index != -1) {
+                invalid_varargs_definiton = true;
+                break;
+            }
+            varargs_signifier_index = i;
+        }
+    }
+    if (!are_all_formal_arguments_symbols) {
+        lisp_value_delete(formal_arguments);
+        lisp_value_delete(body);
+        return lisp_value_error_new("error defining function");
+    }
+    if ((varargs_signifier_index != -1 && varargs_signifier_index != formal_arguments->count - 2) || invalid_varargs_definiton) {
+        lisp_value_delete(formal_arguments);
+        lisp_value_delete(body);
+        return lisp_value_error_new("error defining function: invalid varargs definition");
+    }
+
+    lisp_value_t* varargs_symbol = &null_lisp_value;
+    if (varargs_signifier_index != -1) {
+        lisp_value_delete(lisp_value_pop_child(formal_arguments, varargs_signifier_index));
+        varargs_symbol = lisp_value_pop_child(formal_arguments, varargs_signifier_index);
+    }
+
+    lisp_value_t* lisp_value = lisp_value_new(VAL_USERDEFINED_FUN);
+    // TODO: replace this(and in every occurence with check if lisp_value equals to null_lisp_value
+    //  basically make lisp_value_new return null_lisp_value
+    if (lisp_value == NULL) {
+        return &null_lisp_value;
+    }
+    lisp_value_userdefined_fun_t* userdefined_fun = malloc(sizeof(lisp_value_userdefined_fun_t));
+    if (userdefined_fun == NULL) {
+        lisp_value_delete(lisp_value);
+        return &null_lisp_value;
+    }
+    userdefined_fun->formal_arguments = formal_arguments;
+    userdefined_fun->varargs_symbol = varargs_symbol;
+    userdefined_fun->body = body;
+    userdefined_fun->local_env = lisp_environment_new_with_parent(environment);
+    lisp_value->value_userdefined_fun = userdefined_fun;
+    if (userdefined_fun->local_env == &null_lisp_environment) {
+        lisp_value_delete(lisp_value);
+        return lisp_value_error_new("error defining function");
+    }
     return lisp_value;
 }
 
@@ -204,6 +289,10 @@ lisp_value_t* lisp_value_error_new(char* error_message_template, ...) {
 }
 
 lisp_value_t * lisp_value_copy(lisp_value_t *value) {
+    if (value == &null_lisp_value) {
+        return &null_lisp_value;
+    }
+
     lisp_value_t* copy = lisp_value_new(value->value_type);
     if (copy == NULL) {
         return &null_lisp_value;
@@ -238,15 +327,40 @@ lisp_value_t * lisp_value_copy(lisp_value_t *value) {
         case VAL_ROOT:
         case VAL_QEXPR:
             copy->count = value->count;
-            copy->values = malloc(sizeof(lisp_value_t*) * value->count);
+            /*
+             * Set malloc size to the next larger value divisible by 10,
+             * for example, if count is 16, the next larger value divisible by 10 is 20
+             *  This is in order to not break the implementation for appending a child to sexpr lisp_value_t*
+             */
+            copy->values = malloc(sizeof(lisp_value_t*) * (value->count + (10 - value->count % 10)));
             if (copy->values == NULL) {
                 ok = false;
                 break;
             }
             for (int i = 0; i < value->count; i++) {
                 copy->values[i] = lisp_value_copy(value->values[i]);
+                if (copy->values[i] == &null_lisp_value && value->values[i] != &null_lisp_value) {
+                    ok = false;
+                    break;
+                }
             }
             break;
+        case VAL_USERDEFINED_FUN:
+            copy->value_userdefined_fun = malloc(sizeof(lisp_value_userdefined_fun_t));
+            if (copy->value_userdefined_fun == NULL) {
+                ok = false;
+                break;
+            }
+            copy->value_userdefined_fun->local_env = lisp_environment_copy(value->value_userdefined_fun->local_env);
+            copy->value_userdefined_fun->formal_arguments = lisp_value_copy(value->value_userdefined_fun->formal_arguments);
+            copy->value_userdefined_fun->varargs_symbol = lisp_value_copy(value->value_userdefined_fun->varargs_symbol);
+            copy->value_userdefined_fun->body = lisp_value_copy(value->value_userdefined_fun->body);
+            if ((copy->value_userdefined_fun->local_env == &null_lisp_environment && value->value_userdefined_fun->local_env != &null_lisp_environment)
+                || (copy->value_userdefined_fun->formal_arguments == &null_lisp_value && value->value_userdefined_fun->formal_arguments != &null_lisp_value)
+                || (copy->value_userdefined_fun->body == &null_lisp_value && value->value_userdefined_fun->body != &null_lisp_value)) {
+                ok = false;
+            }
+        break;
     }
 
     if (!ok) {
@@ -281,6 +395,7 @@ bool append_lisp_value(lisp_value_t* value, lisp_value_t* child_to_append) {
             }
             value->values = new_values;
         }
+
         if (value->values == NULL) {
             return false;
         }
@@ -316,8 +431,6 @@ lisp_value_t* lisp_value_pop_child(lisp_value_t *value, int index) {
     if (value->count < 0) {
         value->count = 0;
     }
-
-    /* Reallocate the memory used, so the values points to a contiguous blocks of `count` lisp_value_t* items */
 
     /* reallocate with size that is the first value larger or equal to count which is divisible by 10, for example if
      * count is 16, the next larger value divisible by 10 is 20
@@ -369,7 +482,7 @@ void print_lisp_value(lisp_value_t* lisp_value) {
             printf("%f", lisp_value->value_decimal);
         break;
         case VAL_SYMBOL:
-            printf("symbol: %s", lisp_value->value_symbol);
+            printf("%s", lisp_value->value_symbol);
         break;
         case VAL_SEXPR:
         case VAL_ROOT:
@@ -380,6 +493,13 @@ void print_lisp_value(lisp_value_t* lisp_value) {
         break;
         case VAL_BUILTIN_FUN:
             printf("builtin: %s", lisp_value->value_symbol);
+        break;
+        case VAL_USERDEFINED_FUN:
+            printf("(\\ ");
+            print_lisp_value(lisp_value->value_userdefined_fun->formal_arguments);
+            printf(" ");
+            print_lisp_value(lisp_value->value_userdefined_fun->body);
+            printf(")");
         break;
     }
 }
@@ -934,9 +1054,28 @@ lisp_value_t* builtin_init(lisp_value_t* arguments) {
 }
 
 lisp_value_t* builtin_def(lisp_environment_t* env, lisp_value_t* arguments) {
+    lisp_environment_t* root_environment = NULL;
+    while (env != NULL && env != &null_lisp_environment) {
+        if (env->parent_environment == &lisp_environment_referenced_by_root_environment) {
+            root_environment = env;
+            break;
+        }
+        env = env->parent_environment;
+    }
+
+    // root_environment should never be null, we'll let the program crash by the principle of fail-fast
+    // if(for some magical reason) root_environment is null
+    return lisp_environment_put_variables(root_environment, arguments, BUILTIN_DEF);
+}
+
+lisp_value_t* builtin_local_def(lisp_environment_t* env, lisp_value_t* arguments) {
+    return lisp_environment_put_variables(env, arguments, BUILTIN_LOCAL_DEF);
+}
+
+lisp_value_t* lisp_environment_put_variables(lisp_environment_t* env, lisp_value_t* arguments, char* function_name) {
     lisp_value_t* qexpr_of_symbols = lisp_value_pop_child(arguments, 0);
     if (qexpr_of_symbols->value_type != VAL_QEXPR) {
-        lisp_value_t* error = lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE_TEMPLATE, 1, BUILTIN_DEF, get_value_type_string(VAL_QEXPR), get_value_type_string(qexpr_of_symbols->value_type));
+        lisp_value_t* error = lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE_TEMPLATE, 1, function_name, get_value_type_string(VAL_QEXPR), get_value_type_string(qexpr_of_symbols->value_type));
         lisp_value_delete(qexpr_of_symbols);
         lisp_value_delete(arguments);
         return error;
@@ -956,6 +1095,9 @@ lisp_value_t* builtin_def(lisp_environment_t* env, lisp_value_t* arguments) {
             lisp_value_delete(arguments);
             return error;
         }
+        // TODO: maybe change this a bit? We are checking if we are trying to overwrite a builtin
+        //  maybe change it to be more efficient(i.e do not use lisp_environment_get since it copes and the copied value
+        //  needs to be freed
         lisp_value_t* value = lisp_environment_get(env, qexpr_of_symbols->values[i]);
         if (value->value_type == VAL_BUILTIN_FUN) {
             lisp_value_t* error = lisp_value_error_new(ERR_NOT_ALLOWED_TO_REDEFINE_BUILTIN_FUN_MESSAGE_TEMPLATE, value->value_symbol);
@@ -965,15 +1107,34 @@ lisp_value_t* builtin_def(lisp_environment_t* env, lisp_value_t* arguments) {
             return error;
         }
         lisp_value_delete(value);
-    }
-
-    for (int i = 0; i < qexpr_of_symbols->count; i++) {
         lisp_environment_set(env, qexpr_of_symbols->values[i], arguments->values[i]);
     }
 
     lisp_value_delete(qexpr_of_symbols);
     lisp_value_delete(arguments);
     return lisp_value_sexpr_new();
+}
+
+lisp_value_t * builtin_create_function(lisp_environment_t * env, lisp_value_t * value) {
+    if (value == &null_lisp_value) {
+        return lisp_value_error_new("error defining function");
+    }
+    if (value->count != 2) {
+        lisp_value_delete(value);
+        return lisp_value_error_new("error defining function");
+    }
+    if (value->values[0]->value_type != VAL_QEXPR || value->values[1]->value_type != VAL_QEXPR) {
+        lisp_value_delete(value);
+        return lisp_value_error_new("error defining function");
+    }
+
+    lisp_value_t* userdefined_function = lisp_value_userdefined_fun_new(
+        env,
+        lisp_value_copy(value->values[0]),
+        lisp_value_copy(value->values[1])
+        );
+    lisp_value_delete(value);
+    return userdefined_function;
 }
 
 lisp_value_t* builtin_operation_for_numeric_arguments(char* operation, lisp_value_t* arguments) {
@@ -1050,6 +1211,57 @@ lisp_value_t* builtin_operation_for_numeric_arguments(char* operation, lisp_valu
     return lisp_value_number_new(result_number);
 }
 
+lisp_value_t * builtin_def_fun(lisp_environment_t * env, lisp_value_t * value) {
+    if (value == &null_lisp_value) {
+        return lisp_value_error_new("error defining function");
+    }
+    if (value->count != 2) {
+        lisp_value_delete(value);
+        return lisp_value_error_new("error defining function");
+    }
+    if (value->values[0]->value_type != VAL_QEXPR || value->values[1]->value_type != VAL_QEXPR) {
+        lisp_value_delete(value);
+        return lisp_value_error_new("error defining function");
+    }
+    if (value->values[0]->count < 1) {
+        lisp_value_delete(value);
+        return lisp_value_error_new("error defining function");
+    }
+
+    lisp_value_t* function_name_symbol = lisp_value_pop_child(value->values[0], 0);
+    if (function_name_symbol->value_type != VAL_SYMBOL) {
+        lisp_value_delete(value);
+        return lisp_value_error_new("error defining function");
+    }
+
+    lisp_value_t* function = lisp_value_userdefined_fun_new(
+        env,
+        lisp_value_copy(value->values[0]),
+        lisp_value_copy(value->values[1])
+        );
+
+    lisp_value_delete(value);
+
+    lisp_value_t* def_arguments = lisp_value_sexpr_new();
+    if (def_arguments == &null_lisp_value) {
+        return &null_lisp_value;
+    }
+    lisp_value_t* symbols = lisp_value_qexpr_new();
+    if (symbols == &null_lisp_value) {
+        return &null_lisp_value;
+    }
+
+    bool ok = append_lisp_value(symbols, function_name_symbol);
+    ok = ok && append_lisp_value(def_arguments, symbols);
+    ok = ok && append_lisp_value(def_arguments, function);
+
+    if (!ok) {
+        return &null_lisp_value;
+    }
+
+    return builtin_def(env, def_arguments);
+}
+
 /* Assumes value is sexpr of one operator(builtin fun) and at least one operand and all operands are previously evaluated */
 lisp_value_t* builtin_operation(lisp_environment_t* env, lisp_value_t* value) {
     lisp_value_t* operation = lisp_value_pop_child(value, 0);
@@ -1124,9 +1336,81 @@ lisp_value_t* builtin_operation(lisp_environment_t* env, lisp_value_t* value) {
         return result;
     }
 
+    if (strcmp(operation->value_symbol, BUILTIN_LOCAL_DEF) == 0) {
+        lisp_value_t* result = builtin_local_def(env, value);
+        lisp_value_delete(operation);
+        return result;
+    }
+
+    if (strcmp(operation->value_symbol, BUILTIN_CREATE_FUNCTION) == 0) {
+        lisp_value_t* result = builtin_create_function(env, value);
+        lisp_value_delete(operation);
+        return result;
+    }
+
+    if (strcmp(operation->value_symbol, BUILTIN_DEF_FUN) == 0) {
+        lisp_value_t* result = builtin_def_fun(env, value);
+        lisp_value_delete(operation);
+        return result;
+    }
+
     lisp_value_delete(operation);
     lisp_value_delete(value);
     return lisp_value_error_new(ERR_INVALID_OPERATOR_MESSAGE);
+}
+
+lisp_value_t* call_function_or_builtin_operation(lisp_environment_t* env, lisp_value_t* value) {
+    lisp_value_t* operation = value->values[0];
+    if (operation->value_type == VAL_BUILTIN_FUN) {
+        return builtin_operation(env, value);
+    } else if (operation->value_type == VAL_USERDEFINED_FUN) {
+        // bind arguments
+        lisp_value_t* function = lisp_value_pop_child(value, 0);
+        lisp_value_t* formal_arguments = function->value_userdefined_fun->formal_arguments;
+        size_t argument_values_count = value->count;
+        size_t argument_symbols_count = formal_arguments->count;
+        if (argument_values_count > argument_symbols_count && function->value_userdefined_fun->varargs_symbol == &null_lisp_value) {
+            lisp_value_delete(function);
+            lisp_value_delete(value);
+            // TODO: move this (and others cases similar to this) to a constant
+            return lisp_value_error_new("error evaluating function");
+        }
+
+        size_t min_size = argument_values_count < argument_symbols_count ? argument_values_count : argument_symbols_count;
+        for (size_t i = 0; i < min_size; i++) {
+            lisp_value_t* argument_symbol = lisp_value_pop_child(formal_arguments, 0);
+            lisp_value_t* argument_value = lisp_value_pop_child(value, 0);
+            lisp_environment_set(function->value_userdefined_fun->local_env, argument_symbol, argument_value);
+            lisp_value_delete(argument_symbol);
+        }
+
+        if (argument_values_count < argument_symbols_count) {
+            lisp_value_delete(value);
+            return function;
+        }
+
+        if (function->value_userdefined_fun->varargs_symbol != &null_lisp_value) {
+            lisp_value_t* varargs_qexpr = lisp_value_new(VAL_QEXPR);
+            while (value->count > 0) {
+                append_lisp_value(varargs_qexpr, lisp_value_pop_child(value, 0));
+            }
+            lisp_environment_set(function->value_userdefined_fun->local_env, function->value_userdefined_fun->varargs_symbol, varargs_qexpr);
+        }
+
+        function->value_userdefined_fun->local_env->parent_environment = env;
+
+        lisp_value_t* container_of_body = lisp_value_new(VAL_QEXPR);
+        append_lisp_value(container_of_body, function->value_userdefined_fun->body);
+        lisp_value_t* result = builtin_eval(function->value_userdefined_fun->local_env, container_of_body);
+        // builtin_eval will destroy the body, so to ignore double free, we set the reference to &null_lisp_value
+        function->value_userdefined_fun->body = &null_lisp_value;
+        lisp_value_delete(function);
+        lisp_value_delete(value);
+        return result;
+    } else {
+        lisp_value_delete(value);
+        return lisp_value_error_new(ERR_INVALID_OPERATOR_MESSAGE);
+    }
 }
 
 lisp_value_t* evaluate_lisp_value_destructive(lisp_environment_t *env, lisp_value_t* value) {
@@ -1158,8 +1442,7 @@ lisp_value_t* evaluate_lisp_value_destructive(lisp_environment_t *env, lisp_valu
             lisp_value_delete(value);
             return evaluated_child;
         }
-
-        return builtin_operation(env, value);
+        return call_function_or_builtin_operation(env, value);
     }
 
     return value;
@@ -1197,8 +1480,61 @@ lisp_environment_t * lisp_environment_new() {
         lisp_environment_delete(env);
         return &null_lisp_environment;
     }
+    env->parent_environment = NULL;
 
     return env;
+}
+
+lisp_environment_t* lisp_environment_new_root() {
+    return lisp_environment_new_with_parent(&lisp_environment_referenced_by_root_environment);
+}
+
+lisp_environment_t* lisp_environment_new_with_parent(lisp_environment_t* parent_env) {
+    lisp_environment_t* env = lisp_environment_new();
+    if (env == &null_lisp_environment) {
+        return &null_lisp_environment;
+    }
+    env->parent_environment = parent_env;
+    return env;
+}
+
+lisp_environment_t* lisp_environment_copy(lisp_environment_t* env) {
+    if (env == &null_lisp_environment) {
+        return &null_lisp_environment;
+    }
+
+    lisp_environment_t* copy = malloc(sizeof(lisp_environment_t));
+    if (copy == NULL) {
+        return &null_lisp_environment;
+    }
+
+    copy->count = env->count;
+    /**
+     * Set malloc size to the next larger value divisible by 10,
+     * for example, if count is 16, the next larger value divisible by 10 is 20
+     * This is in order to not break the implementation for appending a child to sexpr lisp_value_t*
+     */
+    copy->symbols = malloc(sizeof(char*) * (env->count + (10 - env->count % 10)));
+    copy->values = malloc(sizeof(lisp_value_t*) * (env->count + (10 - env->count % 10)));
+    if (copy->symbols == NULL || copy->values == NULL) {
+        lisp_environment_delete(copy);
+        return &null_lisp_environment;
+    }
+    for (size_t i = 0; i < env->count; i++) {
+        copy->symbols[i] = malloc(strlen(env->symbols[i]) + 1);
+        if (copy->symbols[i] == NULL) {
+            lisp_environment_delete(copy);
+            return &null_lisp_environment;
+        }
+        strcpy(copy->symbols[i], env->symbols[i]);
+        copy->values[i] = lisp_value_copy(env->values[i]);
+        if (copy->values[i] == &null_lisp_value && env->values[i] != &null_lisp_value) {
+            lisp_environment_delete(copy);
+            return &null_lisp_environment;
+        }
+    }
+    copy->parent_environment = env->parent_environment;
+    return copy;
 }
 
 void lisp_environment_delete(lisp_environment_t *env) {
@@ -1281,6 +1617,10 @@ lisp_value_t* lisp_environment_get(lisp_environment_t* env, lisp_value_t *symbol
     if (symbol == &null_lisp_value) {
         return &null_lisp_value;
     }
+    if (env == &lisp_environment_referenced_by_root_environment) {
+        return lisp_value_error_new(ERR_UNBOUND_SYMBOL_MESSAGE);
+    }
+
 
     lisp_value_t* result = &null_lisp_value;
     for (size_t i = 0; i < env->count; i++) {
@@ -1291,7 +1631,7 @@ lisp_value_t* lisp_environment_get(lisp_environment_t* env, lisp_value_t *symbol
     }
 
     if (result == &null_lisp_value) {
-        return lisp_value_error_new(ERR_UNBOUND_SYMBOL_MESSAGE);
+        return lisp_environment_get(env->parent_environment, symbol);
     }
 
     return result;
@@ -1347,6 +1687,9 @@ bool lisp_environment_setup_builtin_functions(lisp_environment_t *env) {
     ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_LEN);
     ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_INIT);
     ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_DEF);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_LOCAL_DEF);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_CREATE_FUNCTION);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_DEF_FUN);
 
     return ok;
 }
