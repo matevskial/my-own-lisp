@@ -23,6 +23,7 @@ instead return early, or return in the end of the function as possible
 * [] - We added VAL_BUILTIN_FUN instead VAL_FUN(just to avoid function pointers). 
 If needed by future chapters, add VAL_FUN anyway
 * [] - Test whether configuration for treating switch warnings as error works when compiling on Windows
+* [] - Consider switching to clang for compiling
 
 ## done
 
