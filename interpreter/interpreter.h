@@ -10,7 +10,8 @@ typedef enum {
     VAL_ROOT,
     VAL_QEXPR,
     VAL_BUILTIN_FUN,
-    VAL_USERDEFINED_FUN
+    VAL_USERDEFINED_FUN,
+    VAL_BOOLEAN
 } lisp_value_type_t;
 
 // forward declarations
@@ -55,8 +56,10 @@ lisp_value_t* lisp_value_root_new();
 lisp_value_t* lisp_value_qexpr_new();
 lisp_value_t* lisp_value_builtin_fun_new(char* symbol);
 lisp_value_t* lisp_value_userdefined_fun_new(lisp_environment_t* environment, lisp_value_t* formal_arguments, lisp_value_t* body);
+lisp_value_t* lisp_value_boolean_new(long value);
 lisp_value_t* lisp_value_error_new(char* error_message_template, ...);
 lisp_value_t* lisp_value_copy(lisp_value_t* value);
+int lisp_value_equals(lisp_value_t* first, lisp_value_t* second);
 lisp_value_t* get_null_lisp_value();
 lisp_value_t* get_lisp_value_error_bad_numeric_value();
 bool append_lisp_value(lisp_value_t* value, lisp_value_t* child_to_append);

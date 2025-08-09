@@ -18,7 +18,9 @@ static char* ERR_BUILTIN_DEF_INVALID_VALUE_COUNT_MESSAGE_TEMPLATE = "Invalid num
 static char* ERR_BUILTIN_DEF_INVALID_TYPE_FOR_VARIABLE_NAME_MESSAGE_TEMPLATE = "Invalid type for variable name: expected %s, got %s";
 static char* ERR_INVALID_NUMBER_OF_ARGUMENTS_MESSAGE_TEMPLATE = "Invalid number of arguments for %s: expected: %d, got %d";
 static char* ERR_AT_LEAST_ONE_ARGUMENT_EXPECTED_MESSAGE_TEMPLATE = "Expected at least one argument for %s";
+static char* ERR_AT_EXACTLY_N_ARGUMENT_EXPECTED_MESSAGE_TEMPLATE = "Expected exactly %d argument for %s";
 static char* ERR_NOT_ALLOWED_TO_REDEFINE_BUILTIN_FUN_MESSAGE_TEMPLATE = "Builtin %s not allowed to be redefined";
+static char* BOOLEAN_TYPE_MESSAGE = "VAL_NUMBER or VAL_BOOLEAN";
 
 static char* BUILTIN_PLUS = "+";
 static char* BUILTIN_MINUS = "-";
@@ -40,6 +42,19 @@ static char* BUILTIN_DEF = "def";
 static char* BUILTIN_LOCAL_DEF = "=";
 static char* BUILTIN_CREATE_FUNCTION = "\\";
 static char* BUILTIN_DEF_FUN = "fun";
+static char* BUILTIN_GT = ">";
+static char* BUILTIN_GE = ">=";
+static char* BUILTIN_LT = "<";
+static char* BUILTIN_LE = "<=";
+static char* BUILTIN_EQ = "==";
+static char* BUILTIN_NE = "!=";
+static char* BUILTIN_IF = "if";
+static char* BUILTIN_OR = "||";
+static char* BUILTIN_OR_OR = "or";
+static char* BUILTIN_AND = "&&";
+static char* BUILTIN_AND_AND = "and";
+static char* BUILTIN_NOT = "!";
+static char* BUILTIN_NOT_NOT = "not";
 
 static lisp_value_t null_lisp_value = {
     .value_type = 0,
@@ -97,6 +112,10 @@ char* get_value_type_string(lisp_value_type_t value_type) {
             return "Q-expression";
         case VAL_BUILTIN_FUN:
             return "Built-in";
+        case VAL_USERDEFINED_FUN:
+            return "Function";
+        case VAL_BOOLEAN:
+            return "Boolean";
         default:
             return "Unknown type";
     }
@@ -259,6 +278,15 @@ lisp_value_t* lisp_value_userdefined_fun_new(lisp_environment_t* environment, li
     return lisp_value;
 }
 
+lisp_value_t* lisp_value_boolean_new(long value) {
+    lisp_value_t* lisp_value = lisp_value_new(VAL_BOOLEAN);
+    if (lisp_value == NULL) {
+        return &null_lisp_value;
+    }
+    lisp_value->value_number = value;
+    return lisp_value;
+}
+
 lisp_value_t* lisp_value_error_new(char* error_message_template, ...) {
     lisp_value_t* lisp_error = lisp_value_new(VAL_ERR);
     if (lisp_error == NULL) {
@@ -309,6 +337,7 @@ lisp_value_t * lisp_value_copy(lisp_value_t *value) {
             strcpy(copy->error_message, value->error_message);
             break;
         case VAL_NUMBER:
+        case VAL_BOOLEAN:
             copy->value_number = value->value_number;
             break;
         case VAL_DECIMAL:
@@ -369,6 +398,58 @@ lisp_value_t * lisp_value_copy(lisp_value_t *value) {
     }
 
     return copy;
+}
+
+int lisp_value_equals(lisp_value_t* first, lisp_value_t* second) {
+    if (first == &null_lisp_value && second == &null_lisp_value) {
+        return 1;
+    }
+    if (first == &null_lisp_value || second == &null_lisp_value) {
+        return 0;
+    }
+
+    int r = 0;
+    if (first->value_type == second->value_type) {
+        switch (first->value_type) {
+            case VAL_ERR:
+                r = strcmp(first->error_message, second->error_message) == 0;
+            break;
+            case VAL_NUMBER:
+            case VAL_BOOLEAN:
+                r = first->value_number == second->value_number;
+            break;
+            case VAL_DECIMAL:
+                r = first->value_decimal == second->value_decimal;
+            break;
+            case VAL_SYMBOL:
+                r = strcmp(first->value_symbol, second->value_symbol) == 0;
+            break;
+            case VAL_SEXPR:
+            case VAL_ROOT:
+            case VAL_QEXPR:
+                r = first->count == second->count;
+                if (r == 0) {
+                    break;
+                }
+                for (size_t i = 0; i < first->count && r != 0; i++) {
+                    r = lisp_value_equals(first->values[i], second->values[i]);
+                }
+            break;
+            case VAL_BUILTIN_FUN:
+                r = strcmp(first->value_symbol, second->value_symbol) == 0;
+            break;
+            case VAL_USERDEFINED_FUN:
+                int equals_formal_arguments = lisp_value_equals(first->value_userdefined_fun->formal_arguments, second->value_userdefined_fun->formal_arguments);
+                int equals_body = lisp_value_equals(first->value_userdefined_fun->body, second->value_userdefined_fun->body);
+                int equals_varargs_symbol = lisp_value_equals(first->value_userdefined_fun->varargs_symbol, second->value_userdefined_fun->varargs_symbol);
+                r = equals_formal_arguments && equals_body && equals_varargs_symbol;
+            break;
+            default:
+                r = 1;
+        }
+    }
+
+    return r;
 }
 
 lisp_value_t* get_null_lisp_value() {
@@ -500,6 +581,13 @@ void print_lisp_value(lisp_value_t* lisp_value) {
             printf(" ");
             print_lisp_value(lisp_value->value_userdefined_fun->body);
             printf(")");
+        break;
+        case VAL_BOOLEAN:
+            if (lisp_value->value_number == 0) {
+                printf("false");
+            } else {
+                printf("true");
+            }
         break;
     }
 }
@@ -981,6 +1069,7 @@ lisp_value_t* builtin_join(lisp_value_t* arguments) {
     return result;
 }
 
+// TODO: change to accept one qexpr instead of a container of one qexpr
 lisp_value_t* builtin_eval(lisp_environment_t* env, lisp_value_t* arguments) {
     ASSERT_ARGUMENTS_REPRESENT_ONE_QEXPR(arguments, BUILTIN_EVAL);
     lisp_value_t* qexpr = lisp_value_pop_child(arguments, 0);
@@ -1211,6 +1300,74 @@ lisp_value_t* builtin_operation_for_numeric_arguments(char* operation, lisp_valu
     return lisp_value_number_new(result_number);
 }
 
+lisp_value_t* builtin_ordering_operation_for_numeric_arguments(char* operation, lisp_value_t* arguments) {
+    if (arguments->count != 2) {
+        lisp_value_t* error = lisp_value_error_new(ERR_AT_EXACTLY_N_ARGUMENT_EXPECTED_MESSAGE_TEMPLATE, 2, operation);
+        lisp_value_delete(arguments);
+        return error;
+    }
+    if (arguments->values[0]->value_type != arguments->values[1]->value_type) {
+        lisp_value_t* error = lisp_value_error_new("arguments must be of same type");
+        lisp_value_delete(arguments);
+        return error;
+    }
+    if (arguments->values[0]->value_type != VAL_DECIMAL && arguments->values[0]->value_type != VAL_NUMBER) {
+        lisp_value_t* error = lisp_value_error_new("arguments must be of numeric type(VAL_NUMBER or VAL_DECIMAL)");
+        lisp_value_delete(arguments);
+        return error;
+    }
+
+    lisp_value_type_t numeric_type = arguments->values[0]->value_type;
+
+    int r = 0;
+    if (strcmp(operation, ">") == 0) {
+        if (numeric_type == VAL_NUMBER) {
+            r = arguments->values[0]->value_number > arguments->values[1]->value_number;
+        } else {
+            r = arguments->values[0]->value_decimal > arguments->values[1]->value_decimal;
+        }
+    } else if (strcmp(operation, ">=") == 0) {
+        if (numeric_type == VAL_NUMBER) {
+            r = arguments->values[0]->value_number >= arguments->values[1]->value_number;
+        } else {
+            r = arguments->values[0]->value_decimal >= arguments->values[1]->value_decimal;
+        }
+    } else if (strcmp(operation, "<") == 0) {
+        if (numeric_type == VAL_NUMBER) {
+            r = arguments->values[0]->value_number < arguments->values[1]->value_number;
+        } else {
+            r = arguments->values[0]->value_decimal < arguments->values[1]->value_decimal;
+        }
+    } else if (strcmp(operation, "<=") == 0) {
+        if (numeric_type == VAL_NUMBER) {
+            r = arguments->values[0]->value_number <= arguments->values[1]->value_number;
+        } else {
+            r = arguments->values[0]->value_decimal <= arguments->values[1]->value_decimal;
+        }
+    }
+
+    lisp_value_delete(arguments);
+    return lisp_value_number_new(r);
+}
+
+lisp_value_t* builtin_eq(char* operation, lisp_value_t* arguments) {
+    if (arguments->count != 2) {
+        lisp_value_t* error = lisp_value_error_new(ERR_AT_EXACTLY_N_ARGUMENT_EXPECTED_MESSAGE_TEMPLATE, 2, operation);
+        lisp_value_delete(arguments);
+        return error;
+    }
+    lisp_value_t* first = arguments->values[0];
+    lisp_value_t* second = arguments->values[1];
+
+    int r = lisp_value_equals(first, second);
+
+    if (strcmp(operation, "!=") == 0) {
+        r = !r;
+    }
+    lisp_value_delete(arguments);
+    return lisp_value_boolean_new(r);
+}
+
 lisp_value_t * builtin_def_fun(lisp_environment_t * env, lisp_value_t * value) {
     if (value == &null_lisp_value) {
         return lisp_value_error_new("error defining function");
@@ -1262,6 +1419,90 @@ lisp_value_t * builtin_def_fun(lisp_environment_t * env, lisp_value_t * value) {
     return builtin_def(env, def_arguments);
 }
 
+lisp_value_t* builtin_if(lisp_environment_t* env, lisp_value_t* value) {
+    if (value->count != 3) {
+        lisp_value_delete(value);
+        return lisp_value_error_new("if: required 3 arguments");
+    }
+    if (value->values[0]->value_type != VAL_NUMBER && value->values[0]->value_type != VAL_BOOLEAN) {
+        lisp_value_delete(value);
+        return lisp_value_error_new("if: argument 0 should be %s", BOOLEAN_TYPE_MESSAGE);
+    }
+    if (value->values[1]->value_type != VAL_QEXPR) {
+        lisp_value_delete(value);
+        return lisp_value_error_new("if: argument 1 should be VAL_QEXPR");
+    }
+    if (value->values[2]->value_type != VAL_QEXPR) {
+        lisp_value_delete(value);
+        return lisp_value_error_new("if: argument 1 should be VAL_QEXPR");
+    }
+
+    lisp_value_t* container_for_evaluation = lisp_value_qexpr_new();
+    if (value->values[0]->value_number == 0) {
+        append_lisp_value(container_for_evaluation, value->values[2]);
+        // builtin_eval will destroy the body, so to ignore double free, we set the reference to &null_lisp_value
+        // if we don't want to do this, we could pop this child
+        value->values[2] = &null_lisp_value;
+    } else {
+        append_lisp_value(container_for_evaluation, value->values[1]);
+        // builtin_eval will destroy the body, so to ignore double free, we set the reference to &null_lisp_value
+        // if we don't want to do this, we could pop this child
+        value->values[1] = &null_lisp_value;
+    }
+    lisp_value_t* result = builtin_eval(env, container_for_evaluation);
+    lisp_value_delete(value);
+    return result;
+}
+
+lisp_value_t* builtin_logical_operation(char* operation, lisp_value_t* arguments) {
+    if (strcmp(operation, BUILTIN_NOT) == 0 || strcmp(operation, BUILTIN_NOT_NOT) == 0) {
+        if (arguments->count != 1) {
+            lisp_value_t* error = lisp_value_error_new(ERR_INVALID_NUMBER_OF_ARGUMENTS_MESSAGE_TEMPLATE, operation, 1, arguments->count);
+            lisp_value_delete(arguments);
+            return error;
+        }
+        if (arguments->values[0]->value_type != VAL_NUMBER && arguments->values[0]->value_type != VAL_BOOLEAN) {
+            lisp_value_t* error = lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE_TEMPLATE, 1, operation, BOOLEAN_TYPE_MESSAGE, get_value_type_string(arguments->values[0]->value_type));
+            lisp_value_delete(arguments);
+            return error;
+        }
+        lisp_value_t* result = lisp_value_pop_child(arguments, 0);
+        result->value_type = VAL_BOOLEAN;
+        result->value_number = !result->value_number;
+        lisp_value_delete(arguments);
+        return result;
+    } else {
+        if (arguments->count == 0) {
+            lisp_value_t* error = lisp_value_error_new(ERR_AT_LEAST_ONE_ARGUMENT_EXPECTED_MESSAGE_TEMPLATE, operation);
+            lisp_value_delete(arguments);
+            return error;
+        }
+        int r = strcmp(operation, BUILTIN_AND) == 0 || strcmp(operation, BUILTIN_AND_AND) == 0
+        ? 1
+        : 0;
+        for (size_t i = 0; i < arguments->count; i++) {
+            if (arguments->values[i]->value_type != VAL_NUMBER && arguments->values[i]->value_type != VAL_BOOLEAN) {
+                lisp_value_t* error = lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE_TEMPLATE, 1, operation, get_value_type_string(VAL_NUMBER), get_value_type_string(arguments->values[0]->value_type));
+                lisp_value_delete(arguments);
+                return error;
+            }
+            if (strcmp(operation, BUILTIN_AND) == 0 || strcmp(operation, BUILTIN_AND_AND) == 0) {
+                r = r && arguments->values[i]->value_number;
+                if (r == 0) {
+                    break;
+                }
+            } else {
+                r = r || arguments->values[i]->value_number;
+                if (r == 1) {
+                    break;
+                }
+            }
+        }
+        lisp_value_delete(arguments);
+        return lisp_value_boolean_new(r);
+    }
+}
+
 /* Assumes value is sexpr of one operator(builtin fun) and at least one operand and all operands are previously evaluated */
 lisp_value_t* builtin_operation(lisp_environment_t* env, lisp_value_t* value) {
     lisp_value_t* operation = lisp_value_pop_child(value, 0);
@@ -1278,6 +1519,21 @@ lisp_value_t* builtin_operation(lisp_environment_t* env, lisp_value_t* value) {
     if (strpbrk(operation->value_symbol, "+-*/^%") != NULL
         || strcmp(operation->value_symbol, BUILTIN_MIN) == 0 || strcmp(operation->value_symbol, BUILTIN_MAX) == 0) {
         lisp_value_t* result = builtin_operation_for_numeric_arguments(operation->value_symbol, value);
+        lisp_value_delete(operation);
+        return result;
+    }
+
+    if (strcmp(operation->value_symbol, BUILTIN_GT) == 0
+        || strcmp(operation->value_symbol, BUILTIN_LT) == 0
+        || strcmp(operation->value_symbol, BUILTIN_GE) == 0
+        || strcmp(operation->value_symbol, BUILTIN_LE) == 0) {
+        lisp_value_t* result = builtin_ordering_operation_for_numeric_arguments(operation->value_symbol, value);
+        lisp_value_delete(operation);
+        return result;
+    }
+
+    if (strcmp(operation->value_symbol, BUILTIN_EQ) == 0 || strcmp(operation->value_symbol, BUILTIN_NE) == 0) {
+        lisp_value_t* result = builtin_eq(operation->value_symbol, value);
         lisp_value_delete(operation);
         return result;
     }
@@ -1354,6 +1610,20 @@ lisp_value_t* builtin_operation(lisp_environment_t* env, lisp_value_t* value) {
         return result;
     }
 
+    if (strcmp(operation->value_symbol, BUILTIN_IF) == 0) {
+        lisp_value_t* result = builtin_if(env, value);
+        lisp_value_delete(operation);
+        return result;
+    }
+
+    if (strcmp(operation->value_symbol, BUILTIN_OR) == 0 || strcmp(operation->value_symbol, BUILTIN_OR_OR) == 0
+        || strcmp(operation->value_symbol, BUILTIN_AND) == 0 || strcmp(operation->value_symbol, BUILTIN_AND_AND) == 0
+        || strcmp(operation->value_symbol, BUILTIN_NOT) == 0 || strcmp(operation->value_symbol, BUILTIN_NOT_NOT) == 0) {
+        lisp_value_t* result = builtin_logical_operation(operation->value_symbol, value);
+        lisp_value_delete(operation);
+        return result;
+    }
+
     lisp_value_delete(operation);
     lisp_value_delete(value);
     return lisp_value_error_new(ERR_INVALID_OPERATOR_MESSAGE);
@@ -1403,6 +1673,7 @@ lisp_value_t* call_function_or_builtin_operation(lisp_environment_t* env, lisp_v
         append_lisp_value(container_of_body, function->value_userdefined_fun->body);
         lisp_value_t* result = builtin_eval(function->value_userdefined_fun->local_env, container_of_body);
         // builtin_eval will destroy the body, so to ignore double free, we set the reference to &null_lisp_value
+        // if we don't want to do this, we could copy the body
         function->value_userdefined_fun->body = &null_lisp_value;
         lisp_value_delete(function);
         lisp_value_delete(value);
@@ -1690,6 +1961,19 @@ bool lisp_environment_setup_builtin_functions(lisp_environment_t *env) {
     ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_LOCAL_DEF);
     ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_CREATE_FUNCTION);
     ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_DEF_FUN);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_GT);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_GE);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_LT);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_LE);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_EQ);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_NE);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_IF);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_OR);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_OR_OR);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_AND);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_AND_AND);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_NOT);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_NOT_NOT);
 
     return ok;
 }

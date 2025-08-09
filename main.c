@@ -28,10 +28,11 @@ static char *my_own_lisp_language =
     "                                                                                                         \
         number            : /-?[0-9]+/ ;                                                                      \
         decimal           : /-?[0-9]*\\.[0-9]+/ ;                                                             \
-        symbol            : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&%^]+/ ;                                              \
+        boolean           : \"true\" | \"false\" ;                                                            \
+        symbol            : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&%^|]+/ ;                                              \
         sexpr             : '(' <expr>* ')' ;                                                                 \
         qexpr             : '{' <expr>* '}' ;                                                                 \
-        expr              : <decimal> | <number> | <symbol> | <sexpr> | <qexpr> ;                             \
+        expr              : <decimal> | <number> | <boolean> | <symbol> | <sexpr> | <qexpr> ;                 \
         my_own_lisp       : /^/ <expr>* /$/ ;                                                                 \
     ";
 
@@ -60,6 +61,13 @@ lisp_value_t* parse_lisp_value(mpc_ast_t* ast) {
             return get_lisp_value_error_bad_numeric_value();
         }
         return lisp_value_number_new(number);
+    }
+    if (has_tag(ast, "boolean")) {
+        int r = 0;
+        if (strcmp("true", ast->contents) == 0) {
+            r = 1;
+        }
+        return lisp_value_boolean_new(r);
     }
     if (has_tag(ast, "decimal")) {
         errno = 0;
@@ -108,6 +116,7 @@ lisp_value_t* parse_lisp_value(mpc_ast_t* ast) {
 int main() {
     mpc_parser_t* number = mpc_new("number");
     mpc_parser_t* decimal = mpc_new("decimal");
+    mpc_parser_t* boolean = mpc_new("boolean");
     mpc_parser_t* symbol = mpc_new("symbol");
     mpc_parser_t* sexpr = mpc_new("sexpr");
     mpc_parser_t* expr = mpc_new("expr");
@@ -117,7 +126,14 @@ int main() {
     mpca_lang(
         MPCA_LANG_DEFAULT,
         my_own_lisp_language,
-       number, decimal, symbol, sexpr, expr, qexpr, my_own_lisp
+        number,
+        decimal,
+        boolean,
+        symbol,
+        sexpr,
+        expr,
+        qexpr,
+        my_own_lisp
     );
 
     lisp_environment_t* env = lisp_environment_new_root();
@@ -173,7 +189,15 @@ int main() {
         }
     }
 
-    mpc_cleanup(7, number, decimal, symbol, sexpr, expr, qexpr, my_own_lisp);
+    mpc_cleanup(8,
+        number,
+        decimal,
+        boolean,
+        symbol,
+        sexpr,
+        expr,
+        qexpr,
+        my_own_lisp);
     lisp_environment_delete(env);
     return 0;
 }
