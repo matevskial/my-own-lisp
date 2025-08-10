@@ -7,10 +7,11 @@ c = meson.get_compiler('c')
 subdir('tui')
 subdir('mpc')
 subdir('interpreter')
+subdir('parser')
 
 root_includes = include_directories('.')
-sources = [files('main.c'), tui_sources, interpreter_sources]
-includes = [root_includes, tui_inc, interpreter_inc]
+sources = [files('main.c'), tui_sources, interpreter_sources, parser_sources]
+includes = [root_includes, tui_inc, interpreter_inc, parser_inc]
 dependencies_for_target_unix_mac = []
 dependencies_for_target_windows = []
 

@@ -1,10 +1,12 @@
 #include "interpreter.h"
 
+#include "mpc/mpc.h"
+
 #include <math.h>
+#include <parser.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
 
 static int MAX_ERROR_MESSAGE_BUFF_SIZE = 512;
 
@@ -55,6 +57,9 @@ static char* BUILTIN_AND = "&&";
 static char* BUILTIN_AND_AND = "and";
 static char* BUILTIN_NOT = "!";
 static char* BUILTIN_NOT_NOT = "not";
+static char* BUILTIN_LOAD = "load";
+static char* BUILTIN_PRINT = "print";
+static char* BUILTIN_ERROR = "error";
 
 static lisp_value_t null_lisp_value = {
     .value_type = 0,
@@ -116,9 +121,91 @@ char* get_value_type_string(lisp_value_type_t value_type) {
             return "Function";
         case VAL_BOOLEAN:
             return "Boolean";
+        case VAL_STRING:
+            return "String";
         default:
             return "Unknown type";
     }
+}
+
+bool has_tag(mpc_ast_t * ast, char * tag) {
+    return strstr(ast->tag, tag) != NULL;
+}
+
+bool is_root(mpc_ast_t * ast) {
+    return strcmp(ast->tag, ">") == 0;
+}
+
+/* Assumes ast is not NULL
+ * Will return get_null_lisp_value() if the lisp_value is not parsed completely
+ *  * if the ast does not represent the language that this function parses
+ *  * if the program is not able to allocate lisp_value_t* objects
+ */
+lisp_value_t* parse_lisp_value(mpc_ast_t* ast) {
+    if (has_tag(ast, "number")) {
+        errno = 0;
+        long number = strtol(ast->contents, NULL, 10);
+        if (errno != 0) {
+            return get_lisp_value_error_bad_numeric_value();
+        }
+        return lisp_value_number_new(number);
+    }
+    if (has_tag(ast, "boolean")) {
+        int r = 0;
+        if (strcmp("true", ast->contents) == 0) {
+            r = 1;
+        }
+        return lisp_value_boolean_new(r);
+    }
+    if (has_tag(ast, "decimal")) {
+        errno = 0;
+        double number_decimal = strtod(ast->contents, NULL);
+        if (errno != 0) {
+            return get_lisp_value_error_bad_numeric_value();
+        }
+        return lisp_value_decimal_new(number_decimal);
+    }
+    if (has_tag(ast, "string")) {
+        return lisp_value_string_new(ast->contents);
+    }
+    if (has_tag(ast, "symbol")) {
+        return lisp_value_symbol_new(ast->contents);
+    }
+
+    lisp_value_t* lisp_value = get_null_lisp_value();
+    if (is_root(ast)) {
+        lisp_value = lisp_value_root_new();
+    } else if (has_tag(ast, "sexpr")) {
+        lisp_value = lisp_value_sexpr_new();
+    } else if (has_tag(ast, "qexpr")) {
+        lisp_value = lisp_value_qexpr_new();
+    }
+
+    if (is_lisp_value_null(lisp_value)) {
+        return get_null_lisp_value();
+    }
+
+    int i = 1;
+    while (has_tag(ast->children[i], "expr")) {
+        if (has_tag(ast->children[i], "comment")) {
+            i++;
+            continue;
+        }
+        lisp_value_t* current_parsed_lisp_value = parse_lisp_value(ast->children[i]);
+        if (is_lisp_value_null(current_parsed_lisp_value)) {
+            lisp_value_delete(lisp_value);
+            return get_null_lisp_value();
+        }
+        bool ok = append_lisp_value(lisp_value, current_parsed_lisp_value);
+        if (!ok) {
+            lisp_value_delete(current_parsed_lisp_value);
+            lisp_value_delete(lisp_value);
+            return get_null_lisp_value();
+        }
+        i++;
+    }
+
+    return lisp_value;
 }
 
 lisp_value_t* lisp_value_number_new(long value) {
@@ -201,6 +288,8 @@ void lisp_value_delete(lisp_value_t* lisp_value) {
             lisp_environment_delete(lisp_value->value_userdefined_fun->local_env);
         }
         free(lisp_value->value_userdefined_fun);
+    } else if (lisp_value->value_type == VAL_STRING) {
+        free(lisp_value->value_string);
     }
     free(lisp_value);
 }
@@ -287,12 +376,36 @@ lisp_value_t* lisp_value_boolean_new(long value) {
     return lisp_value;
 }
 
+lisp_value_t* lisp_value_string_new(const char* value) {
+    lisp_value_t* lisp_value = lisp_value_new(VAL_STRING);
+    if (lisp_value == NULL) {
+        return &null_lisp_value;
+    }
+
+    size_t value_buffer_size = strlen(value) + 1;
+    size_t value_without_quotes_buffer_size = value_buffer_size - 2;
+    char* value_without_quotes = malloc(value_without_quotes_buffer_size);
+    if (value_without_quotes == NULL) {
+        lisp_value_delete(lisp_value);
+        return &null_lisp_value;
+    }
+    strncpy(value_without_quotes, value + 1, value_without_quotes_buffer_size - 1);
+    value_without_quotes[value_without_quotes_buffer_size - 1] = '\0';
+    lisp_value->value_string = mpcf_unescape(value_without_quotes);
+    // we do not free value_without_quotes since mpcf_unescape frees it already
+    if (lisp_value->value_string == NULL) {
+        lisp_value_delete(lisp_value);
+        return &null_lisp_value;
+    }
+    return lisp_value;
+}
+
 lisp_value_t* lisp_value_error_new(char* error_message_template, ...) {
     lisp_value_t* lisp_error = lisp_value_new(VAL_ERR);
     if (lisp_error == NULL) {
         return &null_lisp_value;
     }
-
+    lisp_error->is_error_user_defined_value = 0;
     va_list va;
     va_start(va, error_message_template);
 
@@ -344,7 +457,7 @@ lisp_value_t * lisp_value_copy(lisp_value_t *value) {
             copy->value_decimal = value->value_decimal;
             break;
         case VAL_SYMBOL:
-            case VAL_BUILTIN_FUN:
+        case VAL_BUILTIN_FUN:
             copy->value_symbol = malloc(strlen(value->value_symbol) + 1);
             if (copy->value_symbol == NULL) {
                 ok = false;
@@ -389,6 +502,14 @@ lisp_value_t * lisp_value_copy(lisp_value_t *value) {
                 || (copy->value_userdefined_fun->body == &null_lisp_value && value->value_userdefined_fun->body != &null_lisp_value)) {
                 ok = false;
             }
+        break;
+        case VAL_STRING:
+            copy->value_string = malloc(strlen(value->value_string) + 1);
+            if (copy->value_string == NULL) {
+                ok = false;
+                break;
+            }
+            strcpy(copy->value_string, value->value_string);
         break;
     }
 
@@ -589,6 +710,13 @@ void print_lisp_value(lisp_value_t* lisp_value) {
                 printf("true");
             }
         break;
+        case VAL_STRING:
+            char* escaped_string = malloc(strlen(lisp_value->value_string) + 1);
+            strcpy(escaped_string, lisp_value->value_string);
+            escaped_string = mpcf_escape(escaped_string);
+            printf("\"%s\"", escaped_string);
+            free(escaped_string);
+            break;
     }
 }
 
@@ -880,7 +1008,7 @@ lisp_eval_result_t* lisp_eval_result_new(lisp_value_t* value) {
     if (value == &null_lisp_value) {
         return lisp_eval_result_error_new("null lisp_value");
     }
-    if (is_lisp_value_error(value)) {
+    if (is_lisp_value_error(value) && value->is_error_user_defined_value == 0) {
         lisp_eval_result_t* result = lisp_eval_result_error_new(value->error_message);
         lisp_value_delete(value);
         return result;
@@ -1503,6 +1631,87 @@ lisp_value_t* builtin_logical_operation(char* operation, lisp_value_t* arguments
     }
 }
 
+lisp_value_t* builtin_load(char* operation, lisp_environment_t* env, lisp_value_t* arguments) {
+    if (arguments->count != 1) {
+        lisp_value_t* error = lisp_value_error_new(ERR_INVALID_NUMBER_OF_ARGUMENTS_MESSAGE_TEMPLATE, operation, 1, arguments->count);
+        lisp_value_delete(arguments);
+        return error;
+    }
+    if (arguments->values[0]->value_type != VAL_STRING) {
+        lisp_value_t* error = lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE_TEMPLATE, 1, operation, get_value_type_string(VAL_STRING), get_value_type_string(arguments->values[0]->value_type));
+        lisp_value_delete(arguments);
+        return error;
+    }
+
+    lisp_environment_t* root_env = env;
+    while (root_env->parent_environment != &lisp_environment_referenced_by_root_environment) {
+        root_env = root_env->parent_environment;
+    }
+
+    mpc_result_t parse_result;
+    if (parse_contents(arguments->values[0]->value_string, &parse_result)) {
+        lisp_value_t* loaded_lisp_expressions = parse_lisp_value(parse_result.output);
+        if (loaded_lisp_expressions->value_type == VAL_ROOT) {
+            while (loaded_lisp_expressions->count > 0) {
+                lisp_value_t* lisp_value = lisp_value_pop_child(loaded_lisp_expressions, 0);
+                lisp_value_t* evaluated = evaluate_lisp_value_destructive(root_env, lisp_value);
+                if (evaluated->value_type == VAL_ERR) {
+                    print_lisp_value(evaluated);
+                    putchar('\n');
+                }
+                lisp_value_delete(evaluated);
+            }
+        }
+        lisp_value_delete(loaded_lisp_expressions);
+        mpc_ast_delete(parse_result.output);
+    } else {
+        lisp_value_t* error = lisp_value_error_new(mpc_err_string(parse_result.error));
+        lisp_value_delete(arguments);
+        mpc_err_delete(parse_result.error);
+        return error;
+    }
+
+    lisp_value_delete(arguments);
+    return lisp_value_sexpr_new();
+}
+
+lisp_value_t* builtin_print(lisp_value_t* arguments) {
+    if (!should_contain_children(arguments)) {
+        lisp_value_delete(arguments);
+        return lisp_value_error_new("builtin_print: need a list of values to print");
+    }
+    for (size_t i = 0; i < arguments->count; i++) {
+        print_lisp_value(arguments->values[i]);
+        if (i != arguments->count - 1) {
+            putchar(' ');
+        }
+    }
+    putchar('\n');
+    lisp_value_delete(arguments);
+    return lisp_value_sexpr_new();
+}
+
+lisp_value_t* builtin_error(lisp_value_t* arguments) {
+    // TODO: make this type of checking reusable with macros maybe, similar to book's code?
+    if (arguments->count != 1) {
+        lisp_value_t* error = lisp_value_error_new(ERR_INVALID_NUMBER_OF_ARGUMENTS_MESSAGE_TEMPLATE, BUILTIN_ERROR, 1, arguments->count);
+        lisp_value_delete(arguments);
+        return error;
+    }
+    if (arguments->values[0]->value_type != VAL_STRING) {
+        lisp_value_t* error = lisp_value_error_new(ERR_INCOMPATIBLE_TYPES_MESSAGE_TEMPLATE, 1, BUILTIN_ERROR, get_value_type_string(VAL_STRING), get_value_type_string(arguments->values[0]->value_type));
+        lisp_value_delete(arguments);
+        return error;
+    }
+
+    lisp_value_t* error_value = lisp_value_error_new(arguments->values[0]->value_string);
+    if (error_value->value_type == VAL_ERR) {
+        error_value->is_error_user_defined_value = 1;
+    }
+    lisp_value_delete(arguments);
+    return error_value;
+}
+
 /* Assumes value is sexpr of one operator(builtin fun) and at least one operand and all operands are previously evaluated */
 lisp_value_t* builtin_operation(lisp_environment_t* env, lisp_value_t* value) {
     lisp_value_t* operation = lisp_value_pop_child(value, 0);
@@ -1624,6 +1833,24 @@ lisp_value_t* builtin_operation(lisp_environment_t* env, lisp_value_t* value) {
         return result;
     }
 
+    if (strcmp(operation->value_symbol, BUILTIN_LOAD) == 0) {
+        lisp_value_t* result = builtin_load(operation->value_symbol, env, value);
+        lisp_value_delete(operation);
+        return result;
+    }
+
+    if (strcmp(operation->value_symbol, BUILTIN_PRINT) == 0) {
+        lisp_value_t* result = builtin_print(value);
+        lisp_value_delete(operation);
+        return result;
+    }
+
+    if (strcmp(operation->value_symbol, BUILTIN_ERROR) == 0) {
+        lisp_value_t* result = builtin_error(value);
+        lisp_value_delete(operation);
+        return result;
+    }
+
     lisp_value_delete(operation);
     lisp_value_delete(value);
     return lisp_value_error_new(ERR_INVALID_OPERATOR_MESSAGE);
@@ -1693,7 +1920,7 @@ lisp_value_t* evaluate_lisp_value_destructive(lisp_environment_t *env, lisp_valu
     if (value->value_type == VAL_SEXPR || value->value_type == VAL_ROOT) {
         for (int i = 0; i < value->count; i++) {
             lisp_value_set_child(value, i, evaluate_lisp_value_destructive(env, value->values[i]));
-            if (is_lisp_value_error(value->values[i])) {
+            if (is_lisp_value_error(value->values[i]) && value->values[i]->is_error_user_defined_value == 0) {
                 lisp_value_t* error_value = lisp_value_error_new(value->values[i]->error_message);
                 lisp_value_delete(value);
                 return error_value;
@@ -1974,6 +2201,9 @@ bool lisp_environment_setup_builtin_functions(lisp_environment_t *env) {
     ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_AND_AND);
     ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_NOT);
     ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_NOT_NOT);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_LOAD);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_PRINT);
+    ok = ok && lisp_environment_setup_builtin_function(env, BUILTIN_ERROR);
 
     return ok;
 }
@@ -1985,4 +2215,25 @@ void println_lisp_environment(lisp_environment_t* env) {
         print_lisp_value(env->values[i]);
         putchar('\n');
     }
+}
+
+lisp_value_t* load_file(lisp_environment_t* env, const char* filename) {
+    lisp_value_t* arguments = lisp_value_sexpr_new();
+    if (arguments == &null_lisp_value) {
+        return &null_lisp_value;
+    }
+    lisp_value_t* string_value = lisp_value_new(VAL_STRING);
+    if (string_value == &null_lisp_value) {
+        lisp_value_delete(arguments);
+        return &null_lisp_value;
+    }
+    string_value->value_string = malloc(strlen(filename) + 1);
+    if (string_value->value_string == NULL) {
+        lisp_value_delete(arguments);
+        lisp_value_delete(string_value);
+        return &null_lisp_value;
+    }
+    strcpy(string_value->value_string, filename);
+    append_lisp_value(arguments, string_value);
+    return builtin_load(BUILTIN_LOAD, env, arguments);
 }

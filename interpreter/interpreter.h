@@ -1,5 +1,5 @@
 #pragma once
-#include <stddef.h>
+#include "parser.h"
 
 typedef enum {
     VAL_ERR,
@@ -11,7 +11,8 @@ typedef enum {
     VAL_QEXPR,
     VAL_BUILTIN_FUN,
     VAL_USERDEFINED_FUN,
-    VAL_BOOLEAN
+    VAL_BOOLEAN,
+    VAL_STRING,
 } lisp_value_type_t;
 
 // forward declarations
@@ -32,6 +33,8 @@ typedef struct lisp_value_t {
     double value_decimal;
     char* value_symbol;
     lisp_value_userdefined_fun_t* value_userdefined_fun;
+    char* value_string;
+    int is_error_user_defined_value;
     long count;
     struct lisp_value_t** values;
 } lisp_value_t;
@@ -48,6 +51,7 @@ typedef struct lisp_environment_t {
     lisp_environment_t* parent_environment;
 } lisp_environment_t;
 
+lisp_value_t* parse_lisp_value(mpc_ast_t* ast);
 lisp_value_t* lisp_value_number_new(long value);
 lisp_value_t* lisp_value_decimal_new(double value);
 lisp_value_t* lisp_value_symbol_new(char* value);
@@ -57,6 +61,7 @@ lisp_value_t* lisp_value_qexpr_new();
 lisp_value_t* lisp_value_builtin_fun_new(char* symbol);
 lisp_value_t* lisp_value_userdefined_fun_new(lisp_environment_t* environment, lisp_value_t* formal_arguments, lisp_value_t* body);
 lisp_value_t* lisp_value_boolean_new(long value);
+lisp_value_t* lisp_value_string_new(const char* value);
 lisp_value_t* lisp_value_error_new(char* error_message_template, ...);
 lisp_value_t* lisp_value_copy(lisp_value_t* value);
 int lisp_value_equals(lisp_value_t* first, lisp_value_t* second);
@@ -102,3 +107,5 @@ bool lisp_environment_exists(lisp_environment_t* env, char* symbol_str);
 bool is_lisp_environment_null(lisp_environment_t* env);
 bool lisp_environment_setup_builtin_functions(lisp_environment_t* env);
 void println_lisp_environment(lisp_environment_t* env);
+
+lisp_value_t* load_file(lisp_environment_t* env, const char* filename);
