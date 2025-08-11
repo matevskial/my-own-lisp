@@ -17,6 +17,7 @@
 * [] - Use hashmap implementation for lisp_env* get, etc
   * either own implementation or stb_ds
   * check this video too https://www.youtube.com/watch?v=DMQ_HcNSOAI
+  * zookeeper's hashtable https://github.com/apache/zookeeper/blob/master/zookeeper-client/zookeeper-client-c/src/hashtable/hashtable.h
 * [] - Consider using function lisp_value_copy in the non-destructive evaluation
 * [] - See if some  functions can be refactored to not return in the middle of the function body, 
 instead return early, or return in the end of the function as possible
@@ -24,6 +25,8 @@ instead return early, or return in the end of the function as possible
 If needed by future chapters, add VAL_FUN anyway
 * [] - Test whether configuration for treating switch warnings as error works when compiling on Windows
 * [] - Consider switching to clang for compiling
+* [] - Complete the todos in code
+* [] - Try implementing some bonus marks which where not implemented
 
 ## done
 
